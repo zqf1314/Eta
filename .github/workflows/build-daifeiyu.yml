@@ -1,0 +1,59 @@
+name: Build APK (大肥鱼)
+
+# 仅用于 fork 后制作带有自定义文案的安装包：不依赖 Release 签名 Secrets，
+# 只产出可直接安装的 Debug APK。
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/rename-to-daifeiyu
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-daifeiyu-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: 构建 Debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: 配置构建环境
+        uses: ./.github/actions/setup-build
+
+      - name: 构建 Debug APK
+        run: >-
+          ./gradlew --no-daemon --no-configuration-cache
+          "-Peta.buildMetadata=${GITHUB_SHA::7}"
+          :app:assembleDebug
+
+      - name: 校验产物
+        run: |
+          shopt -s nullglob
+          apks=(app/build/outputs/apk/debug/*.apk)
+          echo "产物数量: ${#apks[@]}"
+          for apk in "${apks[@]}"; do
+            ls -lh "$apk"
+            echo "sha256=$(sha256sum "$apk" | cut -d' ' -f1)"
+          done
+          if [[ ${#apks[@]} -eq 0 ]]; then
+            echo "::error::未生成任何 APK。"
+            exit 1
+          fi
+
+      - name: 上传 Debug APK
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: eta-debug-daifeiyu-${{ github.sha }}
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14

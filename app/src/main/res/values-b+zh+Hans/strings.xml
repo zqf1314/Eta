@@ -659,7 +659,7 @@
   <string name="page_help_me_open_wechat_65c265">帮我打开微信</string>
   <string name="page_hide_bb0e7e">隐藏</string>
   <string name="page_kernelsu_needs_to_enable_metamodule_support_first_5d29de">KernelSU 需先启用 metamodule 支持</string>
-  <string name="page_leave_it_to_eta_to_finish_3d378f">交给 Eta 去完成</string>
+  <string name="page_leave_it_to_eta_to_finish_3d378f">交给大肥鱼去完成</string>
   <string name="page_magisk_or_kernelsu_not_detected_ae18c5">未检测到 Magisk 或 KernelSU</string>
   <string name="page_missing_2fe9b7">缺失</string>
   <string name="page_model_98fd0c">模型</string>
@@ -703,7 +703,7 @@
   <string name="voice_completed">已完成</string>
   <string name="voice_failed">Eta 执行失败</string>
   <string name="voice_running_tool">Eta 正在执行 %1$s</string>
-  <string name="voice_input_hint">发消息问 Eta…</string>
+  <string name="voice_input_hint">发消息问大肥鱼…</string>
   <string name="voice_send">发送</string>
   <string name="injected_reasoning">Eta 正在思考…</string>
   <string name="injected_executing">Eta 正在执行任务…</string>
@@ -1135,7 +1135,7 @@
   <string name="chat_edit_replace_later">发送后将替换此消息及之后内容</string>
   <string name="chat_edit_replace_message">发送后将替换此消息</string>
   <string name="chat_eta_working">Eta 正在执行…</string>
-  <string name="chat_input_hint">交给 Eta 去完成</string>
+  <string name="chat_input_hint">交给大肥鱼去完成</string>
   <string name="chat_stop">停止</string>
   <string name="chat_send">发送</string>
   <string name="chat_reasoning_effort">思考强度，当前为 %1$s</string>

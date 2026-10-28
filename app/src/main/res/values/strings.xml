@@ -673,7 +673,7 @@
   <string name="page_help_me_open_wechat_65c265">Help me open WeChat</string>
   <string name="page_hide_bb0e7e">hide</string>
   <string name="page_kernelsu_needs_to_enable_metamodule_support_first_5d29de">KernelSU needs to enable metamodule support first</string>
-  <string name="page_leave_it_to_eta_to_finish_3d378f">Leave it to Eta to finish.</string>
+  <string name="page_leave_it_to_eta_to_finish_3d378f">Leave it to Big Fat Fish to finish.</string>
   <string name="page_magisk_or_kernelsu_not_detected_ae18c5">Magisk or KernelSU not detected</string>
   <string name="page_missing_2fe9b7">Missing</string>
   <string name="page_model_98fd0c">Model</string>
@@ -1151,7 +1151,7 @@
   <string name="chat_edit_replace_later">Sending will replace this message and everything after it</string>
   <string name="chat_edit_replace_message">Sending will replace this message</string>
   <string name="chat_eta_working">Eta is working…</string>
-  <string name="chat_input_hint">Ask Eta to do something</string>
+  <string name="chat_input_hint">Ask Big Fat Fish to do something</string>
   <string name="chat_stop">Stop</string>
   <string name="chat_send">Send</string>
   <string name="chat_reasoning_effort">Reasoning effort: %1$s</string>

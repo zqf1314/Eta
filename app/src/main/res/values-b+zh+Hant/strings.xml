@@ -647,7 +647,7 @@
   <string name="page_help_me_open_wechat_65c265">幫我打開微信</string>
   <string name="page_hide_bb0e7e">隱藏</string>
   <string name="page_kernelsu_needs_to_enable_metamodule_support_first_5d29de">請先在 KernelSU 中啟用 metamodule 支援</string>
-  <string name="page_leave_it_to_eta_to_finish_3d378f">交給 Eta 完成</string>
+  <string name="page_leave_it_to_eta_to_finish_3d378f">交給大肥魚去完成</string>
   <string name="page_magisk_or_kernelsu_not_detected_ae18c5">未偵測到 Magisk 或 KernelSU</string>
   <string name="page_missing_2fe9b7">缺失</string>
   <string name="page_model_98fd0c">模型</string>
@@ -1123,7 +1123,7 @@
   <string name="chat_edit_replace_later">傳送後將取代此訊息及其後的內容</string>
   <string name="chat_edit_replace_message">傳送後將取代此訊息</string>
   <string name="chat_eta_working">Eta 正在執行…</string>
-  <string name="chat_input_hint">交給 Eta 完成</string>
+  <string name="chat_input_hint">交給大肥魚去完成</string>
   <string name="chat_stop">停止</string>
   <string name="chat_send">傳送</string>
   <string name="chat_reasoning_effort">思考強度，目前為 %1$s</string>
