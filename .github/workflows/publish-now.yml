@@ -1,0 +1,62 @@
+name: Publish APK to Release
+
+# 一次性工具：把已经构建好的签名 APK 从 Actions Artifact 搬到 Release，
+# 这样公开仓库也能免登录直连下载。
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 来源 workflow run ID
+        required: true
+        default: "40691635862"
+      artifact_name:
+        description: 来源 artifact 名称
+        required: true
+        default: "eta-release-signed-daifeiyu-754321dd5c853441af8da1d7ee895e8db2aa4e88"
+      tag:
+        description: Release 标签
+        required: true
+        default: "daifeiyu-754321d"
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    name: 发布 Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 下载已构建的签名 APK
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: out
+          run-id: ${{ inputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 创建 Release 并附上 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="${{ inputs.tag }}"
+          apk="$(ls out/*.apk | head -n 1)"
+          echo "APK: $apk"
+          ls -lh "$apk"
+
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "$apk" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$tag" "$apk" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "大肥鱼 ${tag#daifeiyu-}" \
+              --notes "输入框与全局文案改为「大肥鱼」的签名构建产物。" \
+              --prerelease
+          fi
+
+          echo "下载页: https://github.com/$GITHUB_REPOSITORY/releases/tag/$tag"
+          echo "直链: https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/$(basename "$apk")"

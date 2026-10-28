@@ -2,7 +2,7 @@ name: Build APK (大肥鱼)
 
 # fork 后用于产出带自定义文案的安装包。
 # Debug 与 Release 同时构建：Release 使用仓库 Secrets 里的自备 keystore 签名，
-# 产出可直接安装、可后续覆盖升级的正式包。
+# 并把签名包挂到 Release 上，方便免登录直连下载。
 on:
   workflow_dispatch:
   push:
@@ -10,7 +10,7 @@ on:
       - feat/rename-to-daifeiyu
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: build-daifeiyu-${{ github.ref }}
@@ -104,3 +104,27 @@ jobs:
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 14
+
+      # Actions Artifact 在公开仓库也要求登录；挂到 Release 才能免登录直连下载
+      - name: 发布 Release 资产
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="daifeiyu-${GITHUB_SHA::7}"
+          apk="$(ls app/build/outputs/apk/release/*.apk | head -n 1)"
+          echo "APK: $apk"
+
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "$apk" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$tag" "$apk" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "大肥鱼 ${GITHUB_SHA::7}" \
+              --notes "输入框与全局文案改为「大肥鱼」的构建产物，keystore 与 daifeiyu 系列一致。" \
+              --prerelease
+          fi
+
+          echo "下载页: https://github.com/$GITHUB_REPOSITORY/releases/tag/$tag"
+          echo "直链: https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/$(basename "$apk")"
