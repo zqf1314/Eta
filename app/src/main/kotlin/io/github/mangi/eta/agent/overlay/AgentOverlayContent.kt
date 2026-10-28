@@ -453,7 +453,7 @@ private fun ResultCardActions(content: String, onOpenEta: () -> Unit, onDone: ()
         modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 14.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        // 复制是图标按钮，主次两个文字按钮分别是"完成"（留在当前应用）与"回到 Eta"（查看完整过程）。
+        // 复制是图标按钮，主次两个文字按钮分别是"完成"（留在当前应用）与"回到大肥鱼"（查看完整过程）。
         IconButton(
             onClick = {
                 clipboard.setText(AnnotatedString(content))

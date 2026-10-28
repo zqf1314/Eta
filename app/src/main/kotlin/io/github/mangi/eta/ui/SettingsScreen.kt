@@ -1017,7 +1017,7 @@ private fun PowerAssistantTarget.displayName(context: Context): String =
     when (this) {
         PowerAssistantTarget.OEM -> context.getString(R.string.power_assistant_system_default)
         PowerAssistantTarget.GEMINI -> "Gemini"
-        PowerAssistantTarget.ETA -> "Eta"
+        PowerAssistantTarget.ETA -> "大肥鱼"
     }
 
 private fun isAgentAccessibilityEnabled(context: Context): Boolean {

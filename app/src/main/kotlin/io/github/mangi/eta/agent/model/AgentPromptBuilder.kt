@@ -106,14 +106,14 @@ internal object AgentPromptBuilder {
                     "after 足够时直接用其中的 observation_id 继续操作，不要例行调用 observe_screen、wait、wait_for_text 或 wait_for_package；" +
                     "只有任务需要读取或汇总屏幕信息而 after 不够、需要截图、工具报告节点过期或结果不确定，" +
                     "以及任务结束前确实需要确认最终结果时，才重新观察；仅当后续操作依赖特定文本或应用出现时使用 wait_for_text/wait_for_package。" +
-                    "屏幕观察与 GUI 操作前会确认 Eta 无障碍服务；只有系统保护后端可用时才会请求有限重绑。" +
+                    "屏幕观察与 GUI 操作前会确认大肥鱼无障碍服务；只有系统保护后端可用时才会请求有限重绑。" +
                     "若工具返回 ACCESSIBILITY_UNAVAILABLE、ACCESSIBILITY_PROTECTION_UNAVAILABLE 或 ACCESSIBILITY_REPAIR_TIMEOUT，说明动作未执行，" +
                     "不要改用坐标或 Shell 重放 GUI 动作。"
             )
         )
         if (config.terminalTools) {
             messages.put(systemMessage(
-                "Eta 内置文件与终端工具。文件和命令共用本次运行的默认身份与工作区；已知路径可直接读取或写入，不必先查目录。" +
+                "大肥鱼内置文件与终端工具。文件和命令共用本次运行的默认身份与工作区；已知路径可直接读取或写入，不必先查目录。" +
                     rootInstructions(rootAvailable) +
                     "普通命令调用 terminal，只需 command；单次命令结束后进程会回收，不要用 & 起后台进程；持续 Shell 工作可 action=open 后用 session_id 复用，目录变化用会话内的 cd。" +
                     "希望回复后继续运行的命令使用 terminal_job：start 提交任务，完成时会通知用户；list/read 查看进度，确实依赖结果时再 wait，stop 终止。日志路径可用于分页读取完整输出。跨任务服务使用 terminal_daemon。" +
@@ -178,7 +178,7 @@ internal object AgentPromptBuilder {
         } else {
             "Root 授权尚未确认；这不代表设备不支持 Root。"
         }) +
-            "identity=user 是显式选择 Eta App 身份，不代表终端没有 Root 通道。" +
+            "identity=user 是显式选择大肥鱼 App 身份，不代表终端没有 Root 通道。" +
             "用户说明已授权、授权状态发生变化或需要确认 Root 时，调用 terminal(action=check_root) 实际验证；" +
             "它执行固定的 su -c 'id -u'，可能显示系统授权请求，结果会说明最近一次检测的状态。成功后的新命令默认使用 Root；既有会话与后台任务保持创建时的身份。" +
             "不得根据 su 文件大小、是否为符号链接或 ro.build.type 推断 Root 真伪；结论以实际检测和工具结果为准。"

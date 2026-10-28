@@ -21,7 +21,7 @@ internal object AgentDeviceToolCatalog {
         tools
             .put(function(
                 "inspect_app",
-                "读取当前 Android 用户中指定应用的版本、UID、安装来源与路径、启用状态和请求权限，不要求应用具有桌面入口。只支持 Eta 所属用户，不跨工作资料查询。权限列表按 permission_offset/permission_limit 分页。",
+                "读取当前 Android 用户中指定应用的版本、UID、安装来源与路径、启用状态和请求权限，不要求应用具有桌面入口。只支持大肥鱼所属用户，不跨工作资料查询。权限列表按 permission_offset/permission_limit 分页。",
                 properties(
                     "package_name" to string("精确 Android 包名", 255),
                     "user_id" to userId(),
@@ -127,7 +127,7 @@ internal object AgentDeviceToolCatalog {
             .put(
                 function(
                     "search_notification_history",
-                    "检索 Eta 在用户授予通知使用权后记录的最近 7 天通知。原始结果不写入持久会话。",
+                    "检索大肥鱼在用户授予通知使用权后记录的最近 7 天通知。原始结果不写入持久会话。",
                     properties(
                         "query" to string("可选标题或正文关键词", 200),
                         "package_name" to string("可选精确包名", 255),
@@ -238,7 +238,7 @@ internal object AgentDeviceToolCatalog {
             .put(
                 function(
                     "set_setting",
-                    "修改一个 Android Settings 值，并读回验证。user_id 默认 Eta 所属用户；global 命名空间影响设备。仅 verified=true 表示已确认目标值，未确认时不要直接重放。",
+                    "修改一个 Android Settings 值，并读回验证。user_id 默认大肥鱼所属用户；global 命名空间影响设备。仅 verified=true 表示已确认目标值，未确认时不要直接重放。",
                     properties(
                         "namespace" to enumString("设置命名空间", "system", "secure", "global"),
                         "key" to string("精确设置键", 200),
@@ -263,7 +263,7 @@ internal object AgentDeviceToolCatalog {
             .put(
                 function(
                     "app_state_control",
-                    "停止、冻结或解冻 Eta 所属 Android 用户中的一个精确包名，包括系统应用，并读回 stopped/enabled 状态。仅 verified=true 表示目标状态已确认；不跨用户或工作资料执行。",
+                    "停止、冻结或解冻大肥鱼所属 Android 用户中的一个精确包名，包括系统应用，并读回 stopped/enabled 状态。仅 verified=true 表示目标状态已确认；不跨用户或工作资料执行。",
                     properties(
                         "package_name" to string("精确 Android 包名", 255),
                         "action" to enumString("动作", "force_stop", "freeze", "unfreeze"),
@@ -326,7 +326,7 @@ internal object AgentDeviceToolCatalog {
         JSONObject().put("type", "boolean").put("description", description)
 
     private fun userId(): JSONObject =
-        integer("Android 用户编号，默认 Eta 所属用户；其他用户或工作资料返回 USER_SCOPE_UNSUPPORTED", 0, Int.MAX_VALUE)
+        integer("Android 用户编号，默认大肥鱼所属用户；其他用户或工作资料返回 USER_SCOPE_UNSUPPORTED", 0, Int.MAX_VALUE)
 
     private fun integer(description: String, minimum: Int, maximum: Int): JSONObject =
         JSONObject()

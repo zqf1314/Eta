@@ -63,7 +63,7 @@ internal object AgentTerminalToolCatalog {
     private fun executionProperties(): JSONObject = JSONObject()
         .put("environment", text("android 使用 Android 命令环境；linux 使用本次运行选定的 Linux 环境。默认 android。")
             .put("enum", JSONArray(listOf("android", "linux"))))
-        .put("identity", text("可选的宿主执行身份；Android 已确认 Root 授权时默认 root，否则 user。已授权时无需先尝试 user 或重复检测；显式 user 使用 Eta App UID。Linux 内模拟 root 不提供 Android 特权。")
+        .put("identity", text("可选的宿主执行身份；Android 已确认 Root 授权时默认 root，否则 user。已授权时无需先尝试 user 或重复检测；显式 user 使用大肥鱼 App UID。Linux 内模拟 root 不提供 Android 特权。")
             .put("enum", JSONArray(listOf("user", "root"))))
         .put("cwd", text("可选工作目录；省略时使用当前环境默认工作区，相对路径也以默认工作区为基准。"))
 
