@@ -1,7 +1,8 @@
 name: Build APK (大肥鱼)
 
-# 仅用于 fork 后制作带有自定义文案的安装包：不依赖 Release 签名 Secrets，
-# 只产出可直接安装的 Debug APK。
+# fork 后用于产出带自定义文案的安装包。
+# Debug 与 Release 同时构建：Release 使用仓库 Secrets 里的自备 keystore 签名，
+# 产出可直接安装、可后续覆盖升级的正式包。
 on:
   workflow_dispatch:
   push:
@@ -17,7 +18,7 @@ concurrency:
 
 jobs:
   build:
-    name: 构建 Debug APK
+    name: 构建 Debug 与已签名 Release
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -30,23 +31,61 @@ jobs:
       - name: 配置构建环境
         uses: ./.github/actions/setup-build
 
-      - name: 构建 Debug APK
+      - name: 还原发布证书
+        env:
+          ETA_RELEASE_KEYSTORE_BASE64: ${{ secrets.ETA_RELEASE_KEYSTORE_BASE64 }}
+          ETA_RELEASE_STORE_PASSWORD: ${{ secrets.ETA_RELEASE_STORE_PASSWORD }}
+          ETA_RELEASE_KEY_ALIAS: ${{ secrets.ETA_RELEASE_KEY_ALIAS }}
+          ETA_RELEASE_KEY_PASSWORD: ${{ secrets.ETA_RELEASE_KEY_PASSWORD }}
+        run: |
+          if [[ -z "$ETA_RELEASE_KEYSTORE_BASE64" ||
+                -z "$ETA_RELEASE_STORE_PASSWORD" ||
+                -z "$ETA_RELEASE_KEY_ALIAS" ||
+                -z "$ETA_RELEASE_KEY_PASSWORD" ]]; then
+            echo "::error::缺少 Release 签名 Secrets。"
+            exit 1
+          fi
+          printf '%s' "$ETA_RELEASE_KEYSTORE_BASE64" \
+            | base64 --decode \
+            > "$RUNNER_TEMP/eta-release.jks"
+
+      - name: 构建 Debug 与 Release APK
+        env:
+          ETA_RELEASE_STORE_FILE: ${{ runner.temp }}/eta-release.jks
+          ETA_RELEASE_STORE_PASSWORD: ${{ secrets.ETA_RELEASE_STORE_PASSWORD }}
+          ETA_RELEASE_KEY_ALIAS: ${{ secrets.ETA_RELEASE_KEY_ALIAS }}
+          ETA_RELEASE_KEY_PASSWORD: ${{ secrets.ETA_RELEASE_KEY_PASSWORD }}
         run: >-
           ./gradlew --no-daemon --no-configuration-cache
           "-Peta.buildMetadata=${GITHUB_SHA::7}"
-          :app:assembleDebug
+          :app:assembleDebug :app:assembleRelease
 
-      - name: 校验产物
+      - name: 验证签名并整理产物
         run: |
           shopt -s nullglob
-          apks=(app/build/outputs/apk/debug/*.apk)
-          echo "产物数量: ${#apks[@]}"
-          for apk in "${apks[@]}"; do
-            ls -lh "$apk"
-            echo "sha256=$(sha256sum "$apk" | cut -d' ' -f1)"
+          apksigner_path="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          if [[ -z "$apksigner_path" ]]; then
+            echo "::error::未找到 apksigner。"
+            exit 1
+          fi
+
+          debug_apks=(app/build/outputs/apk/debug/*.apk)
+          release_apks=(app/build/outputs/apk/release/*.apk)
+          echo "Debug 产物: ${#debug_apks[@]}  Release 产物: ${#release_apks[@]}"
+
+          for apk in "${release_apks[@]}"; do
+            echo "::group::签名校验 $apk"
+            "$apksigner_path" verify --print-certs "$apk"
+            echo "::endgroup::"
           done
-          if [[ ${#apks[@]} -eq 0 ]]; then
-            echo "::error::未生成任何 APK。"
+
+          for apk in "${debug_apks[@]}" "${release_apks[@]}"; do
+            ls -lh "$apk"
+            echo "sha256 $(sha256sum "$apk" | cut -d' ' -f1)  $(basename "$apk")"
+          done
+
+          if [[ ${#release_apks[@]} -eq 0 ]]; then
+            echo "::error::未生成 Release APK。"
             exit 1
           fi
 
@@ -55,5 +94,13 @@ jobs:
         with:
           name: eta-debug-daifeiyu-${{ github.sha }}
           path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: 上传 Release APK（已签名）
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: eta-release-signed-daifeiyu-${{ github.sha }}
+          path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 14
