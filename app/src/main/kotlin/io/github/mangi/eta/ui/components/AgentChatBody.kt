@@ -361,13 +361,12 @@ private fun AgentChatScaffold(
         drawContent()
     }
 
-    // 背景层必须包在 Scaffold 外面：Scaffold 的 containerColor 已是透明，
-    // 同时把 layerBackdrop 提到这一层，底部输入栏的毛玻璃才能采样到壁纸。
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .then(if (frostEnabled) Modifier.layerBackdrop(messageBackdrop) else Modifier),
-    ) {
+    // 背景层必须包在 Scaffold 外面，Scaffold 的 containerColor 已是透明。
+    // 注意：layerBackdrop 绝对不能挂在最外层 Box 上——底部输入栏就在这个 Box 里面，
+    // 它又拿同一个 backdrop 去画毛玻璃，就会形成“自己采样自己”的嵌套，
+    // RenderThread 递归到栈溢出（实测 SIGSEGV / stack overflow）。
+    // backdrop 必须继续挂在消息列表那一层（与输入栏同级，不是它的祖先）。
+    Box(modifier = Modifier.fillMaxSize()) {
         ChatBackgroundLayer(modifier = Modifier.fillMaxSize())
 
         Scaffold(
@@ -449,6 +448,7 @@ private fun AgentChatScaffold(
                     onHistoryViewportChanged = onHistoryViewportChanged,
                     modifier = Modifier
                         .fillMaxSize()
+                        .then(if (frostEnabled) Modifier.layerBackdrop(messageBackdrop) else Modifier),
                 )
             }
         }
