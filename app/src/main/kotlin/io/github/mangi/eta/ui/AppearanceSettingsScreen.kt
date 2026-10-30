@@ -39,6 +39,8 @@ import io.github.mangi.eta.data.model.ChatBackgroundScale
 import io.github.mangi.eta.data.model.ChatBackgroundSettings
 import io.github.mangi.eta.data.model.MAX_DIM_AMOUNT
 import io.github.mangi.eta.data.model.MAX_BLUR_RADIUS_DP
+import io.github.mangi.eta.data.model.MAX_BAR_ALPHA
+import io.github.mangi.eta.data.model.MIN_BAR_ALPHA
 import io.github.mangi.eta.data.model.MAX_INTERFACE_SCALE
 import io.github.mangi.eta.data.model.MIN_BLUR_RADIUS_DP
 import io.github.mangi.eta.data.model.MIN_DIM_AMOUNT
@@ -95,6 +97,12 @@ internal fun AppearanceSettingsScreen(onBack: () -> Unit) {
     }
     var blurDraft by remember(chatBackground.blurRadiusDp) {
         mutableFloatStateOf(chatBackground.blurRadiusDp)
+    }
+    var topBarAlphaDraft by remember(chatBackground.topBarAlpha) {
+        mutableFloatStateOf(chatBackground.topBarAlpha * 100f)
+    }
+    var inputBarAlphaDraft by remember(chatBackground.inputBarAlpha) {
+        mutableFloatStateOf(chatBackground.inputBarAlpha * 100f)
     }
     // 选择器的结果回调跑在 DataStore 写入完成之前，读不到刚刚切换的 mode，
     // 因此单独记住本次要导入的媒体类型。
@@ -466,6 +474,66 @@ internal fun AppearanceSettingsScreen(onBack: () -> Unit) {
                                 )
                             },
                             enabled = chatBackground.supportsImageFilters,
+                            onClick = null,
+                        )
+                        EtaPreferenceDivider(hasLeading = false)
+                        EtaArrowPreference(
+                            title = stringResource(R.string.chat_background_top_bar_alpha),
+                            summary = stringResource(R.string.chat_background_top_bar_alpha_summary),
+                            endActions = {
+                                Text(
+                                    text = "${topBarAlphaDraft.roundToInt()}%",
+                                    fontSize = MiuixTheme.textStyles.body2.fontSize,
+                                    color = MiuixTheme.colorScheme.onSurfaceVariantActions,
+                                )
+                            },
+                            bottomAction = {
+                                Slider(
+                                    value = topBarAlphaDraft.coerceIn(
+                                        MIN_BAR_ALPHA * 100f,
+                                        MAX_BAR_ALPHA * 100f,
+                                    ),
+                                    onValueChange = { topBarAlphaDraft = it },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    valueRange = (MIN_BAR_ALPHA * 100f)..(MAX_BAR_ALPHA * 100f),
+                                    onValueChangeFinished = {
+                                        val next = topBarAlphaDraft.roundToInt() / 100f
+                                        topBarAlphaDraft = next * 100f
+                                        updateBackground { it.copy(topBarAlpha = next) }
+                                    },
+                                    hapticEffect = SliderDefaults.SliderHapticEffect.Step,
+                                )
+                            },
+                            onClick = null,
+                        )
+                        EtaPreferenceDivider(hasLeading = false)
+                        EtaArrowPreference(
+                            title = stringResource(R.string.chat_background_input_bar_alpha),
+                            summary = stringResource(R.string.chat_background_input_bar_alpha_summary),
+                            endActions = {
+                                Text(
+                                    text = "${inputBarAlphaDraft.roundToInt()}%",
+                                    fontSize = MiuixTheme.textStyles.body2.fontSize,
+                                    color = MiuixTheme.colorScheme.onSurfaceVariantActions,
+                                )
+                            },
+                            bottomAction = {
+                                Slider(
+                                    value = inputBarAlphaDraft.coerceIn(
+                                        MIN_BAR_ALPHA * 100f,
+                                        MAX_BAR_ALPHA * 100f,
+                                    ),
+                                    onValueChange = { inputBarAlphaDraft = it },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    valueRange = (MIN_BAR_ALPHA * 100f)..(MAX_BAR_ALPHA * 100f),
+                                    onValueChangeFinished = {
+                                        val next = inputBarAlphaDraft.roundToInt() / 100f
+                                        inputBarAlphaDraft = next * 100f
+                                        updateBackground { it.copy(inputBarAlpha = next) }
+                                    },
+                                    hapticEffect = SliderDefaults.SliderHapticEffect.Step,
+                                )
+                            },
                             onClick = null,
                         )
                         EtaPreferenceDivider(hasLeading = false)

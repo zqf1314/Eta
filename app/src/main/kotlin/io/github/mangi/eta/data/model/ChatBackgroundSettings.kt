@@ -49,6 +49,10 @@ data class ChatBackgroundSettings(
     val blurRadiusDp: Float = MIN_BLUR_RADIUS_DP,
     val scale: ChatBackgroundScale = ChatBackgroundScale.COVER,
     val grayscale: Boolean = false,
+    /** 壁纸模式下顶栏底色的不透明度；1 表示完全遮住壁纸。 */
+    val topBarAlpha: Float = DEFAULT_TOP_BAR_ALPHA,
+    /** 壁纸模式下输入栏卡片的不透明度；越小越透，卡片越像浮在壁纸上的玻璃。 */
+    val inputBarAlpha: Float = DEFAULT_INPUT_BAR_ALPHA,
 ) {
     val isActive: Boolean
         get() = mode != ChatBackgroundMode.NONE && !mediaFile.isNullOrBlank()
@@ -60,6 +64,8 @@ data class ChatBackgroundSettings(
     fun normalized(): ChatBackgroundSettings = copy(
         dimAmount = dimAmount.coerceIn(MIN_DIM_AMOUNT, MAX_DIM_AMOUNT),
         blurRadiusDp = blurRadiusDp.coerceIn(MIN_BLUR_RADIUS_DP, MAX_BLUR_RADIUS_DP),
+        topBarAlpha = topBarAlpha.coerceIn(MIN_BAR_ALPHA, MAX_BAR_ALPHA),
+        inputBarAlpha = inputBarAlpha.coerceIn(MIN_BAR_ALPHA, MAX_BAR_ALPHA),
         mediaFile = mediaFile?.takeIf { it.isNotBlank() },
     )
 }
@@ -69,3 +75,9 @@ const val MAX_DIM_AMOUNT = 0.85f
 const val DEFAULT_DIM_AMOUNT = 0.35f
 const val MIN_BLUR_RADIUS_DP = 0f
 const val MAX_BLUR_RADIUS_DP = 24f
+
+/** 顶栏/输入栏浮层的不透明度取值范围：两边共用一套上下限。 */
+const val MIN_BAR_ALPHA = 0.05f
+const val MAX_BAR_ALPHA = 1f
+const val DEFAULT_TOP_BAR_ALPHA = 0.55f
+const val DEFAULT_INPUT_BAR_ALPHA = 0.82f

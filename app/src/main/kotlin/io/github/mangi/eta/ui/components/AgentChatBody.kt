@@ -81,6 +81,7 @@ import io.github.mangi.eta.data.model.ReasoningEffort
 import io.github.mangi.eta.ui.app.AgentConversationRevisionReducer
 import io.github.mangi.eta.ui.app.LocalBlurEnabled
 import io.github.mangi.eta.ui.app.LocalChatBackgroundActive
+import io.github.mangi.eta.ui.app.LocalChatWallpaperBarAlphas
 import io.github.mangi.eta.ui.markdown.StreamingMarkdownStateCache
 import io.github.mangi.eta.ui.model.ConversationHistoryLoadState
 import io.github.mangi.eta.ui.model.AgentChatMessageUi
@@ -357,6 +358,8 @@ private fun AgentChatScaffold(
     val surfaceColor = MiuixTheme.colorScheme.surface
     val frostEnabled = hasMessages && LocalBlurEnabled.current && isRuntimeShaderSupported()
     val wallpaperActive = LocalChatBackgroundActive.current
+    // 壁纸模式下输入卡片的底色不透明度，由设置里的滑杆控制。
+    val wallpaperInputBarAlpha = LocalChatWallpaperBarAlphas.current.inputBar
     val messageBackdrop = rememberLayerBackdrop {
         // Backdrop 必须包含不透明底色，否则文字边缘模糊到透明区域时会出现黑边。
         drawRect(surfaceColor)
@@ -379,6 +382,7 @@ private fun AgentChatScaffold(
                 AgentChatBottomBar(
                     messageBackdrop = messageBackdrop.takeIf { frostEnabled },
                     wallpaperBackground = wallpaperActive,
+                    wallpaperInputBarAlpha = wallpaperInputBarAlpha,
                     input = input,
                     modelPickerState = modelPickerState,
                     isCompacting = isCompacting,
@@ -998,6 +1002,7 @@ internal fun resolveFinalResultMessageIds(
 private fun AgentChatBottomBar(
     messageBackdrop: LayerBackdrop?,
     wallpaperBackground: Boolean,
+    wallpaperInputBarAlpha: Float,
     input: String,
     modelPickerState: AgentModelPickerUiState,
     isCompacting: Boolean,
@@ -1094,6 +1099,7 @@ private fun AgentChatBottomBar(
         ) {
             AgentChatInputBar(
                 input = input,
+                containerAlpha = if (wallpaperBackground) wallpaperInputBarAlpha else 1f,
                 modelPickerState = modelPickerState,
                 isCompacting = isCompacting,
                 contextUsage = contextUsage,

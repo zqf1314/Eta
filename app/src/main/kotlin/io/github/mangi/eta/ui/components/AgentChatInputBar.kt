@@ -114,6 +114,11 @@ private val InputContainerShape = RoundedCornerShape(20.dp)
 @Composable
 internal fun AgentChatInputBar(
     input: String,
+    /**
+     * 输入卡片底色的不透明度。1 表示完全不透明（默认外观）；
+     * 小于 1 时卡片变成半透明玻璃，压在聊天壁纸上。
+     */
+    containerAlpha: Float = 1f,
     modelPickerState: AgentModelPickerUiState,
     isCompacting: Boolean,
     contextUsage: AgentContextUsageUi,
@@ -267,16 +272,20 @@ internal fun AgentChatInputBar(
                         shadow = Shadow(
                             radius = 8.dp,
                             color = Color.Black,
-                            alpha = 0.08f,
+                            alpha = if (containerAlpha < 1f) 0.16f else 0.08f,
                         ),
                     )
                     .squircleSurface(
-                        color = MiuixTheme.colorScheme.surfaceContainer,
+                        // 壁纸模式下卡片半透明，壁纸从卡片后面透出来形成玻璃感。
+                        color = MiuixTheme.colorScheme.surfaceContainer.copy(alpha = containerAlpha),
                         cornerRadius = 20.dp,
                     )
                     .squircleBorder(
                         width = 0.5.dp,
-                        color = MiuixTheme.colorScheme.outline.copy(alpha = 0.55f),
+                        color = MiuixTheme.colorScheme.outline.copy(
+                            // 玻璃卡片的描边略提亮，否则压在深色壁纸上会整张糊掉。
+                            alpha = if (containerAlpha < 1f) 0.75f else 0.55f,
+                        ),
                         cornerRadius = 20.dp,
                     )
                     .padding(horizontal = 10.dp, vertical = 8.dp),

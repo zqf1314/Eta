@@ -126,7 +126,14 @@ internal fun AgentAppShell(
     val chatBackground by remember { ChatBackgroundRepository.settingsFlow() }
         .collectAsState(initial = ChatBackgroundSettings())
     val chatBackgroundActive = currentRoute is AppRoute.Home && chatBackground.isActive
-    val topBarSurfaceAlpha = if (chatBackgroundActive) ChatWallpaperTopBarAlpha else null
+    // 顶栏/输入栏的透明度由设置分别控制，壁纸模式下才生效。
+    val wallpaperBarAlphas = remember(chatBackground.topBarAlpha, chatBackground.inputBarAlpha) {
+        ChatWallpaperBarAlphas(
+            topBar = chatBackground.topBarAlpha,
+            inputBar = chatBackground.inputBarAlpha,
+        )
+    }
+    val topBarSurfaceAlpha = if (chatBackgroundActive) wallpaperBarAlphas.topBar else null
     val pageContent: @Composable () -> Unit = {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
@@ -174,7 +181,10 @@ internal fun AgentAppShell(
         if (chatBackgroundActive) {
             ChatBackgroundLayer(modifier = Modifier.fillMaxSize())
         }
-        CompositionLocalProvider(LocalChatBackgroundActive provides chatBackgroundActive) {
+        CompositionLocalProvider(
+            LocalChatBackgroundActive provides chatBackgroundActive,
+            LocalChatWallpaperBarAlphas provides wallpaperBarAlphas,
+        ) {
             if (conversationPaneState != null && currentRoute is AppRoute.Home) {
                 ConversationSidePaneScaffold(
                     state = conversationPaneState,
@@ -500,7 +510,8 @@ private fun CharacterTopBarIdentity(character: RoleplayChatUi, onClick: () -> Un
 }
 
 /**
- * 铺了聊天壁纸时顶栏的半透明底色：既能压住滚动上来的消息，又能透出壁纸，
+ * 顶栏在壁纸模式下的半透明底色：既能压住滚动上来的消息，又能透出壁纸，
  * 避免顶栏变成一条不透明白条把壁纸切成相框。
+ *
+ * 具体取值现在由用户在设置里的「顶栏透明度」滑杆控制（[ChatBackgroundSettings.topBarAlpha]）。
  */
-private const val ChatWallpaperTopBarAlpha = 0.55f

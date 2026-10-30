@@ -192,6 +192,10 @@
   <string name="chat_background_dim_summary">压暗背景，保证气泡内容可读</string>
   <string name="chat_background_blur">背景虚化</string>
   <string name="chat_background_blur_summary">仅对图片生效，视频背景不做虚化</string>
+  <string name="chat_background_top_bar_alpha">顶栏透明度</string>
+  <string name="chat_background_top_bar_alpha_summary">调低让壁纸从顶栏透出来</string>
+  <string name="chat_background_input_bar_alpha">输入框玻璃透明度</string>
+  <string name="chat_background_input_bar_alpha_summary">调低输入框更透，壁纸更明显</string>
   <string name="chat_background_scale">填充方式</string>
   <string name="chat_background_scale_cover">铺满</string>
   <string name="chat_background_scale_contain">完整</string>

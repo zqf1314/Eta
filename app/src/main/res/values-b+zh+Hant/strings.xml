@@ -191,6 +191,10 @@
   <string name="chat_background_dim_summary">壓暗背景，保證氣泡內容可讀</string>
   <string name="chat_background_blur">背景模糊</string>
   <string name="chat_background_blur_summary">僅對圖片生效，影片背景不做模糊</string>
+  <string name="chat_background_top_bar_alpha">頂欄透明度</string>
+  <string name="chat_background_top_bar_alpha_summary">調低讓背景從頂欄透出來</string>
+  <string name="chat_background_input_bar_alpha">輸入框玻璃透明度</string>
+  <string name="chat_background_input_bar_alpha_summary">調低輸入框更透，背景更明顯</string>
   <string name="chat_background_scale">填充方式</string>
   <string name="chat_background_scale_cover">填滿</string>
   <string name="chat_background_scale_contain">完整</string>
