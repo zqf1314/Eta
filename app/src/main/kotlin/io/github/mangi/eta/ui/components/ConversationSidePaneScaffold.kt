@@ -48,6 +48,7 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import io.github.mangi.eta.R
+import io.github.mangi.eta.ui.app.LocalChatBackgroundActive
 import io.github.mangi.eta.ui.model.ConversationPaneUiState
 import io.github.mangi.eta.ui.model.ConversationSummaryUi
 import kotlin.math.roundToInt
@@ -141,6 +142,8 @@ fun ConversationSidePaneScaffold(
         }
         val panelListState = rememberLazyListState()
         val scope = rememberCoroutineScope()
+        // 铺了聊天壁纸时，这里所有不透明底色都要让位，否则壁纸会被这块 surface 整片盖住。
+        val wallpaperActive = LocalChatBackgroundActive.current
         val focusManager = LocalFocusManager.current
         val keyboard = LocalSoftwareKeyboardController.current
         val closePane: () -> Unit = {
@@ -203,7 +206,7 @@ fun ConversationSidePaneScaffold(
         Box(
             modifier = Modifier.fillMaxSize()
                 .clipToBounds()
-                .background(conversationPaneContainerColor())
+                .background(if (wallpaperActive) Color.Transparent else conversationPaneContainerColor())
                 // 手势由共同容器拥有，侧栏和聊天舞台均可拖动；子级先处理滚动与选择。
                 .anchoredDraggable(
                     state = paneDragState,
@@ -247,7 +250,7 @@ fun ConversationSidePaneScaffold(
                                 val progress = conversationPaneMotion(paneDragState.offset, paneWidthPx).progress
                                 drawRect(Color.Black, alpha = ConversationPaneMetrics.ChatScrimAlpha * progress)
                             }
-                            .background(MiuixTheme.colorScheme.background),
+                            .background(if (wallpaperActive) Color.Transparent else MiuixTheme.colorScheme.background),
                     ) {
                         Box(
                             modifier = Modifier

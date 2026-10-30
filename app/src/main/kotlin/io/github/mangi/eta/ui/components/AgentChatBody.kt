@@ -80,6 +80,7 @@ import io.github.mangi.eta.agent.browser.BrowserSessionSnapshot
 import io.github.mangi.eta.data.model.ReasoningEffort
 import io.github.mangi.eta.ui.app.AgentConversationRevisionReducer
 import io.github.mangi.eta.ui.app.LocalBlurEnabled
+import io.github.mangi.eta.ui.app.LocalChatBackgroundActive
 import io.github.mangi.eta.ui.markdown.StreamingMarkdownStateCache
 import io.github.mangi.eta.ui.model.ConversationHistoryLoadState
 import io.github.mangi.eta.ui.model.AgentChatMessageUi
@@ -355,20 +356,16 @@ private fun AgentChatScaffold(
 ) {
     val surfaceColor = MiuixTheme.colorScheme.surface
     val frostEnabled = hasMessages && LocalBlurEnabled.current && isRuntimeShaderSupported()
+    val wallpaperActive = LocalChatBackgroundActive.current
     val messageBackdrop = rememberLayerBackdrop {
         // Backdrop 必须包含不透明底色，否则文字边缘模糊到透明区域时会出现黑边。
         drawRect(surfaceColor)
         drawContent()
     }
 
-    // 背景层必须包在 Scaffold 外面，Scaffold 的 containerColor 已是透明。
-    // 注意：layerBackdrop 绝对不能挂在最外层 Box 上——底部输入栏就在这个 Box 里面，
-    // 它又拿同一个 backdrop 去画毛玻璃，就会形成“自己采样自己”的嵌套，
-    // RenderThread 递归到栈溢出（实测 SIGSEGV / stack overflow）。
-    // backdrop 必须继续挂在消息列表那一层（与输入栏同级，不是它的祖先）。
+    // 壁纸由 AppShell 铺在最底层（这样才能铺满整屏，连顶栏下面也是壁纸），
+    // 这里只负责让内容层保持透明。
     Box(modifier = Modifier.fillMaxSize()) {
-        ChatBackgroundLayer(modifier = Modifier.fillMaxSize())
-
         Scaffold(
             modifier = modifier.fillMaxSize(),
             containerColor = Color.Transparent,
@@ -381,6 +378,7 @@ private fun AgentChatScaffold(
             bottomBar = {
                 AgentChatBottomBar(
                     messageBackdrop = messageBackdrop.takeIf { frostEnabled },
+                    wallpaperBackground = wallpaperActive,
                     input = input,
                     modelPickerState = modelPickerState,
                     isCompacting = isCompacting,
@@ -999,6 +997,7 @@ internal fun resolveFinalResultMessageIds(
 @Composable
 private fun AgentChatBottomBar(
     messageBackdrop: LayerBackdrop?,
+    wallpaperBackground: Boolean,
     input: String,
     modelPickerState: AgentModelPickerUiState,
     isCompacting: Boolean,
@@ -1035,7 +1034,9 @@ private fun AgentChatBottomBar(
             .fillMaxWidth()
             .imePadding(),
     ) {
-        if (messageBackdrop != null) {
+        // 铺了壁纸时，这两块底色都必须让位：壁纸要一直透到屏幕最底部，
+        // 只有输入框本身作为一张卡片浮在壁纸上。
+        if (!wallpaperBackground && messageBackdrop != null) {
             val blurColors = BlurDefaults.blurColors(
                 blendColors = listOf(
                     BlendColorEntry(MiuixTheme.colorScheme.surface.copy(alpha = 0.72f))
@@ -1065,7 +1066,7 @@ private fun AgentChatBottomBar(
                         colors = blurColors,
                     ),
             )
-        } else {
+        } else if (!wallpaperBackground) {
             // 空白主页沿用原来的轻微渐隐，不改变主页视觉。
             Box(
                 modifier = Modifier
@@ -1084,7 +1085,10 @@ private fun AgentChatBottomBar(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MiuixTheme.colorScheme.surface)
+                .background(
+                    if (wallpaperBackground) Color.Transparent
+                    else MiuixTheme.colorScheme.surface,
+                )
                 .navigationBarsPadding()
                 .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
         ) {

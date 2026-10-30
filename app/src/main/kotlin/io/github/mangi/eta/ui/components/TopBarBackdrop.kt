@@ -33,10 +33,14 @@ internal fun rememberTopBarBackdrop(): LayerBackdrop? {
 @Composable
 internal fun TopBarBackdrop(
     backdrop: LayerBackdrop?,
+    // 聊天页铺了自定义背景时传一个 0..1 的透明度：此时顶栏不再做内容取景模糊
+    // （取景层里没有壁纸，只会糊出一片纯 surface），改成半透明 surface 直接压在壁纸上。
+    surfaceAlphaOverride: Float? = null,
     content: @Composable () -> Unit,
 ) {
     val surfaceColor = MiuixTheme.colorScheme.surface
     val modifier = when {
+        surfaceAlphaOverride != null -> Modifier.background(surfaceColor.copy(alpha = surfaceAlphaOverride))
         backdrop == null -> Modifier.background(surfaceColor)
         LocalTopBarBlurStyle.current == AppearanceTopBarBlurStyle.PROGRESSIVE -> {
             Modifier.progressiveTextureBlur(

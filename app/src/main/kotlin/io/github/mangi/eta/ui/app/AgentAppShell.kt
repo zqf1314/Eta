@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,10 +45,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.mangi.eta.R
+import io.github.mangi.eta.data.model.ChatBackgroundSettings
 import io.github.mangi.eta.data.model.TtsProvider
+import io.github.mangi.eta.data.repository.ChatBackgroundRepository
 import io.github.mangi.eta.data.repository.SpeechSettingsRepository
 import io.github.mangi.eta.ui.components.AdaptiveTopAppBar
 import io.github.mangi.eta.ui.components.CharacterAvatar
+import io.github.mangi.eta.ui.components.ChatBackgroundLayer
 import io.github.mangi.eta.ui.components.ConversationSidePaneScaffold
 import io.github.mangi.eta.ui.components.MiuixBackButton
 import io.github.mangi.eta.ui.components.RoleplayChatUi
@@ -117,19 +121,26 @@ internal fun AgentAppShell(
     val scrollBehavior = MiuixScrollBehavior()
     val backdrop = rememberTopBarBackdrop()
     val topBarColor = topBarContainerColor(backdrop)
+    // 聊天页自定义背景层必须画在 Scaffold 外面，才能铺满整屏（顶栏和输入栏压在它之上）。
+    // 只有首页聊天舞台用这个背景，其它路由保持原样。
+    val chatBackground by remember { ChatBackgroundRepository.settingsFlow() }
+        .collectAsState(initial = ChatBackgroundSettings())
+    val chatBackgroundActive = currentRoute is AppRoute.Home && chatBackground.isActive
+    val topBarSurfaceAlpha = if (chatBackgroundActive) ChatWallpaperTopBarAlpha else null
     val pageContent: @Composable () -> Unit = {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
+            containerColor = if (chatBackgroundActive) Color.Transparent else MiuixTheme.colorScheme.background,
             contentWindowInsets = WindowInsets.safeDrawing.only(
                 WindowInsetsSides.Top + WindowInsetsSides.Horizontal,
             ),
             topBar = {
                 if (currentRoute !is AppRoute.Settings) {
-                    TopBarBackdrop(backdrop) {
+                    TopBarBackdrop(backdrop, surfaceAlphaOverride = topBarSurfaceAlpha) {
                         AgentTopBar(
                             route = currentRoute,
                             scrollBehavior = scrollBehavior,
-                            color = topBarColor,
+                            color = if (chatBackgroundActive) Color.Transparent else topBarColor,
                             onBack = onBack,
                             onOpenConversationPane = onOpenConversationPane,
                             onNewConversation = onNewConversation,
@@ -159,29 +170,35 @@ internal fun AgentAppShell(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        if (conversationPaneState != null && currentRoute is AppRoute.Home) {
-            ConversationSidePaneScaffold(
-                state = conversationPaneState,
-                visible = isConversationPaneOpen,
-                backHandlerEnabled = isCurrentRoute,
-                onOpen = onOpenConversationPane,
-                onDismiss = onDismissConversationPane,
-                onSearchChange = onSearchConversations,
-                onConversationSelected = onSelectConversation,
-                onConversationRename = onConversationRename,
-                onConversationExport = onConversationExport,
-                onConversationDelete = onConversationDelete,
-                onOpenSettings = onOpenSettings,
-                onOpenModelProviders = onOpenModelProviders,
-                onOpenTools = onOpenTools,
-                onOpenSkills = onOpenSkills,
-                onOpenCharacters = onOpenCharacters,
-                onOpenPermissions = onOpenPermissions,
-            ) {
+        // 壁纸铺在整个 AppShell 的最底层，顶栏/内容/输入栏都叠在它上面。
+        if (chatBackgroundActive) {
+            ChatBackgroundLayer(modifier = Modifier.fillMaxSize())
+        }
+        CompositionLocalProvider(LocalChatBackgroundActive provides chatBackgroundActive) {
+            if (conversationPaneState != null && currentRoute is AppRoute.Home) {
+                ConversationSidePaneScaffold(
+                    state = conversationPaneState,
+                    visible = isConversationPaneOpen,
+                    backHandlerEnabled = isCurrentRoute,
+                    onOpen = onOpenConversationPane,
+                    onDismiss = onDismissConversationPane,
+                    onSearchChange = onSearchConversations,
+                    onConversationSelected = onSelectConversation,
+                    onConversationRename = onConversationRename,
+                    onConversationExport = onConversationExport,
+                    onConversationDelete = onConversationDelete,
+                    onOpenSettings = onOpenSettings,
+                    onOpenModelProviders = onOpenModelProviders,
+                    onOpenTools = onOpenTools,
+                    onOpenSkills = onOpenSkills,
+                    onOpenCharacters = onOpenCharacters,
+                    onOpenPermissions = onOpenPermissions,
+                ) {
+                    pageContent()
+                }
+            } else {
                 pageContent()
             }
-        } else {
-            pageContent()
         }
     }
 }
@@ -481,3 +498,9 @@ private fun CharacterTopBarIdentity(character: RoleplayChatUi, onClick: () -> Un
         )
     }
 }
+
+/**
+ * 铺了聊天壁纸时顶栏的半透明底色：既能压住滚动上来的消息，又能透出壁纸，
+ * 避免顶栏变成一条不透明白条把壁纸切成相框。
+ */
+private const val ChatWallpaperTopBarAlpha = 0.55f
