@@ -127,10 +127,11 @@ internal fun AgentAppShell(
         .collectAsState(initial = ChatBackgroundSettings())
     val chatBackgroundActive = currentRoute is AppRoute.Home && chatBackground.isActive
     // 顶栏/输入栏的透明度由设置分别控制，壁纸模式下才生效。
-    val wallpaperBarAlphas = remember(chatBackground.topBarAlpha, chatBackground.inputBarAlpha) {
+    val wallpaperBarAlphas = remember(chatBackground.topBarAlpha, chatBackground.inputBarAlpha, chatBackground.suggestionAlpha) {
         ChatWallpaperBarAlphas(
             topBar = chatBackground.topBarAlpha,
             inputBar = chatBackground.inputBarAlpha,
+            suggestion = chatBackground.suggestionAlpha,
         )
     }
     val topBarSurfaceAlpha = if (chatBackgroundActive) wallpaperBarAlphas.topBar else null

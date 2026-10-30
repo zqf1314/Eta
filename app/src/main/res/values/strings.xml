@@ -195,6 +195,8 @@
   <string name="chat_background_top_bar_alpha_summary">Lower lets the wallpaper show through the top bar</string>
   <string name="chat_background_input_bar_alpha">Input glass opacity</string>
   <string name="chat_background_input_bar_alpha_summary">Lower makes the input card more see-through</string>
+  <string name="chat_background_suggestion_alpha">Quick action card opacity</string>
+  <string name="chat_background_suggestion_alpha_summary">Lower makes the shortcut cards on the empty screen more see-through</string>
   <string name="chat_background_scale">Fill mode</string>
   <string name="chat_background_scale_cover">Fill</string>
   <string name="chat_background_scale_contain">Fit</string>

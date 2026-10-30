@@ -5,6 +5,7 @@ import androidx.compose.ui.unit.Density
 import io.github.mangi.eta.data.model.AppearanceSettings
 import io.github.mangi.eta.data.model.AppearanceTopBarBlurStyle
 import io.github.mangi.eta.data.model.DEFAULT_INPUT_BAR_ALPHA
+import io.github.mangi.eta.data.model.DEFAULT_SUGGESTION_ALPHA
 import io.github.mangi.eta.data.model.DEFAULT_TOP_BAR_ALPHA
 
 internal val LocalAppearanceSettings = staticCompositionLocalOf { AppearanceSettings() }
@@ -30,6 +31,7 @@ internal val LocalChatBackgroundActive = staticCompositionLocalOf { false }
 internal data class ChatWallpaperBarAlphas(
     val topBar: Float = DEFAULT_TOP_BAR_ALPHA,
     val inputBar: Float = DEFAULT_INPUT_BAR_ALPHA,
+    val suggestion: Float = DEFAULT_SUGGESTION_ALPHA,
 )
 
 internal val LocalChatWallpaperBarAlphas = staticCompositionLocalOf { ChatWallpaperBarAlphas() }

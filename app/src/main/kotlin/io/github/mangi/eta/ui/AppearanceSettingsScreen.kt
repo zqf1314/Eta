@@ -104,6 +104,9 @@ internal fun AppearanceSettingsScreen(onBack: () -> Unit) {
     var inputBarAlphaDraft by remember(chatBackground.inputBarAlpha) {
         mutableFloatStateOf(chatBackground.inputBarAlpha * 100f)
     }
+    var suggestionAlphaDraft by remember(chatBackground.suggestionAlpha) {
+        mutableFloatStateOf(chatBackground.suggestionAlpha * 100f)
+    }
     // 选择器的结果回调跑在 DataStore 写入完成之前，读不到刚刚切换的 mode，
     // 因此单独记住本次要导入的媒体类型。
     var pendingImportMode by remember { mutableStateOf(ChatBackgroundMode.IMAGE) }
@@ -530,6 +533,36 @@ internal fun AppearanceSettingsScreen(onBack: () -> Unit) {
                                         val next = inputBarAlphaDraft.roundToInt() / 100f
                                         inputBarAlphaDraft = next * 100f
                                         updateBackground { it.copy(inputBarAlpha = next) }
+                                    },
+                                    hapticEffect = SliderDefaults.SliderHapticEffect.Step,
+                                )
+                            },
+                            onClick = null,
+                        )
+                        EtaPreferenceDivider(hasLeading = false)
+                        EtaArrowPreference(
+                            title = stringResource(R.string.chat_background_suggestion_alpha),
+                            summary = stringResource(R.string.chat_background_suggestion_alpha_summary),
+                            endActions = {
+                                Text(
+                                    text = "${suggestionAlphaDraft.roundToInt()}%",
+                                    fontSize = MiuixTheme.textStyles.body2.fontSize,
+                                    color = MiuixTheme.colorScheme.onSurfaceVariantActions,
+                                )
+                            },
+                            bottomAction = {
+                                Slider(
+                                    value = suggestionAlphaDraft.coerceIn(
+                                        MIN_BAR_ALPHA * 100f,
+                                        MAX_BAR_ALPHA * 100f,
+                                    ),
+                                    onValueChange = { suggestionAlphaDraft = it },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    valueRange = (MIN_BAR_ALPHA * 100f)..(MAX_BAR_ALPHA * 100f),
+                                    onValueChangeFinished = {
+                                        val next = suggestionAlphaDraft.roundToInt() / 100f
+                                        suggestionAlphaDraft = next * 100f
+                                        updateBackground { it.copy(suggestionAlpha = next) }
                                     },
                                     hapticEffect = SliderDefaults.SliderHapticEffect.Step,
                                 )

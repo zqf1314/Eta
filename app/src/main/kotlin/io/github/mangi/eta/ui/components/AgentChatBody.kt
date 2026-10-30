@@ -1176,6 +1176,12 @@ private fun EmptyChatState(
 ) {
     val character = LocalRoleplayChat.current
     val isCharacterConversation = character != null
+    // 壁纸模式下快捷卡片跟着壁纸一起透，透明度由设置里的「快捷卡片透明度」控制。
+    val suggestionContainerAlpha = if (LocalChatBackgroundActive.current) {
+        LocalChatWallpaperBarAlphas.current.suggestion
+    } else {
+        1f
+    }
     val suggestions = listOf(
         SuggestionItem(
             title = stringResource(R.string.ui_analyze_current_screen_ebf08f),
@@ -1263,6 +1269,7 @@ private fun EmptyChatState(
                                 SuggestionCard(
                                     item = item,
                                     onClick = { onSuggestionClick(item.prompt) },
+                                    containerAlpha = suggestionContainerAlpha,
                                     modifier = Modifier.weight(1f),
                                 )
                             }
@@ -1278,14 +1285,21 @@ private fun EmptyChatState(
 private fun SuggestionCard(
     item: SuggestionItem,
     onClick: () -> Unit,
+    containerAlpha: Float = 1f,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
-            .squircleSurface(color = MiuixTheme.colorScheme.surface, cornerRadius = 16.dp)
+            .squircleSurface(
+                // 壁纸模式下卡片半透明，壁纸从卡片后面透出来。
+                color = MiuixTheme.colorScheme.surface.copy(alpha = containerAlpha),
+                cornerRadius = 16.dp,
+            )
             .squircleBorder(
                 width = 0.5.dp,
-                color = MiuixTheme.colorScheme.outline.copy(alpha = 0.5f),
+                color = MiuixTheme.colorScheme.outline.copy(
+                    alpha = if (containerAlpha < 1f) 0.7f else 0.5f,
+                ),
                 cornerRadius = 16.dp,
             )
             .clickable(onClick = onClick)

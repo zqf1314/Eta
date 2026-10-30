@@ -53,6 +53,8 @@ data class ChatBackgroundSettings(
     val topBarAlpha: Float = DEFAULT_TOP_BAR_ALPHA,
     /** 壁纸模式下输入栏卡片的不透明度；越小越透，卡片越像浮在壁纸上的玻璃。 */
     val inputBarAlpha: Float = DEFAULT_INPUT_BAR_ALPHA,
+    /** 壁纸模式下空会话页快捷卡片的不透明度。 */
+    val suggestionAlpha: Float = DEFAULT_SUGGESTION_ALPHA,
 ) {
     val isActive: Boolean
         get() = mode != ChatBackgroundMode.NONE && !mediaFile.isNullOrBlank()
@@ -66,6 +68,7 @@ data class ChatBackgroundSettings(
         blurRadiusDp = blurRadiusDp.coerceIn(MIN_BLUR_RADIUS_DP, MAX_BLUR_RADIUS_DP),
         topBarAlpha = topBarAlpha.coerceIn(MIN_BAR_ALPHA, MAX_BAR_ALPHA),
         inputBarAlpha = inputBarAlpha.coerceIn(MIN_BAR_ALPHA, MAX_BAR_ALPHA),
+        suggestionAlpha = suggestionAlpha.coerceIn(MIN_BAR_ALPHA, MAX_BAR_ALPHA),
         mediaFile = mediaFile?.takeIf { it.isNotBlank() },
     )
 }
@@ -81,3 +84,4 @@ const val MIN_BAR_ALPHA = 0.05f
 const val MAX_BAR_ALPHA = 1f
 const val DEFAULT_TOP_BAR_ALPHA = 0.55f
 const val DEFAULT_INPUT_BAR_ALPHA = 0.82f
+const val DEFAULT_SUGGESTION_ALPHA = 0.65f

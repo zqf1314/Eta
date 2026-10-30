@@ -195,6 +195,8 @@
   <string name="chat_background_top_bar_alpha_summary">調低讓背景從頂欄透出來</string>
   <string name="chat_background_input_bar_alpha">輸入框玻璃透明度</string>
   <string name="chat_background_input_bar_alpha_summary">調低輸入框更透，背景更明顯</string>
+  <string name="chat_background_suggestion_alpha">快捷卡片透明度</string>
+  <string name="chat_background_suggestion_alpha_summary">調低讓空會話頁的快捷卡片更透</string>
   <string name="chat_background_scale">填充方式</string>
   <string name="chat_background_scale_cover">填滿</string>
   <string name="chat_background_scale_contain">完整</string>
