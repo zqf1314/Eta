@@ -1,6 +1,7 @@
 package io.github.mangi.eta.ui.app
 
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Density
 import io.github.mangi.eta.data.model.AppearanceSettings
 import io.github.mangi.eta.data.model.AppearanceTopBarBlurStyle
@@ -35,3 +36,11 @@ internal data class ChatWallpaperBarAlphas(
 )
 
 internal val LocalChatWallpaperBarAlphas = staticCompositionLocalOf { ChatWallpaperBarAlphas() }
+
+/**
+ * AI 回复正文的自定义文字颜色，null 表示跟随主题。
+ *
+ * 只有聊天页铺着壁纸时才会被赋值：壁纸一撤就回到主题色，
+ * 免得用户留着一份和当前主题撞色的文字颜色。
+ */
+internal val LocalAiReplyTextColor = staticCompositionLocalOf<Color?> { null }

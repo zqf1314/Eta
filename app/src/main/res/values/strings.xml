@@ -197,6 +197,9 @@
   <string name="chat_background_input_bar_alpha_summary">Lower makes the input card more see-through</string>
   <string name="chat_background_suggestion_alpha">Quick action card opacity</string>
   <string name="chat_background_suggestion_alpha_summary">Lower makes the shortcut cards on the empty screen more see-through</string>
+  <string name="chat_background_ai_text_color">AI reply text color</string>
+  <string name="chat_background_ai_text_color_summary">Applies only while a chat wallpaper is set. Pick a color that contrasts with the wallpaper; removing the wallpaper restores the theme color</string>
+  <string name="chat_background_ai_text_color_following">Follow theme</string>
   <string name="chat_background_scale">Fill mode</string>
   <string name="chat_background_scale_cover">Fill</string>
   <string name="chat_background_scale_contain">Fit</string>

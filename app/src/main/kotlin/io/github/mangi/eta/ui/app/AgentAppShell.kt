@@ -135,6 +135,12 @@ internal fun AgentAppShell(
         )
     }
     val topBarSurfaceAlpha = if (chatBackgroundActive) wallpaperBarAlphas.topBar else null
+    // AI 回复文字颜色只在铺着壁纸时下发；壁纸撤掉后自动回到主题色。
+    val aiReplyTextColor = if (chatBackgroundActive) {
+        chatBackground.aiReplyTextColor?.let { Color(it) }
+    } else {
+        null
+    }
     val pageContent: @Composable () -> Unit = {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
@@ -185,6 +191,7 @@ internal fun AgentAppShell(
         CompositionLocalProvider(
             LocalChatBackgroundActive provides chatBackgroundActive,
             LocalChatWallpaperBarAlphas provides wallpaperBarAlphas,
+            LocalAiReplyTextColor provides aiReplyTextColor,
         ) {
             if (conversationPaneState != null && currentRoute is AppRoute.Home) {
                 ConversationSidePaneScaffold(

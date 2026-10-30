@@ -8,6 +8,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import kotlinx.coroutines.Dispatchers
@@ -28,8 +29,9 @@ internal fun StaticMarkdown(
     tone: MarkdownTone,
     modifier: Modifier = Modifier,
     parsed: MarkdownDocument? = null,
+    answerColor: Color? = null,
 ) {
-    val style = rememberMarkdownStyle(tone)
+    val style = rememberMarkdownStyle(tone, answerColor)
     val reusable = parsed?.takeIf { it.inlineStyle == style.inline }
     val document = reusable ?: produceState(
         initialValue = staticMarkdownDocumentCache.get(content, style.inline),
@@ -61,9 +63,10 @@ internal fun StreamingMarkdown(
     isStreaming: Boolean,
     tone: MarkdownTone,
     modifier: Modifier = Modifier,
+    answerColor: Color? = null,
     onRevealCompleteChange: (Boolean) -> Unit = {},
 ) {
-    val style = rememberMarkdownStyle(tone)
+    val style = rememberMarkdownStyle(tone, answerColor)
     // 思考紧跟已收到的增量，避免高速思考先排版占位、再受正文逐字速度限制而积压。
     val reveal = state.revealCoordinator.takeIf { tone == MarkdownTone.Answer }
     val snapshot = state.snapshot

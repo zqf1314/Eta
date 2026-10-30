@@ -197,6 +197,9 @@
   <string name="chat_background_input_bar_alpha_summary">調低輸入框更透，背景更明顯</string>
   <string name="chat_background_suggestion_alpha">快捷卡片透明度</string>
   <string name="chat_background_suggestion_alpha_summary">調低讓空會話頁的快捷卡片更透</string>
+  <string name="chat_background_ai_text_color">AI 回覆文字顏色</string>
+  <string name="chat_background_ai_text_color_summary">只在鋪著聊天壁紙時生效；挑一個和壁紙反差更大的顏色能提高可讀性，撤掉壁紙會回到主題色</string>
+  <string name="chat_background_ai_text_color_following">跟隨主題</string>
   <string name="chat_background_scale">填充方式</string>
   <string name="chat_background_scale_cover">填滿</string>
   <string name="chat_background_scale_contain">完整</string>

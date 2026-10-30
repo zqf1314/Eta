@@ -53,12 +53,14 @@ internal class MarkdownStyle(
 }
 
 @Composable
-internal fun rememberMarkdownStyle(tone: MarkdownTone): MarkdownStyle {
+internal fun rememberMarkdownStyle(tone: MarkdownTone, answerColor: Color? = null): MarkdownStyle {
     val colors = MiuixTheme.colorScheme
     val textStyles = MiuixTheme.textStyles
-    return remember(tone, colors, textStyles) {
+    return remember(tone, colors, textStyles, answerColor) {
         val answer = tone == MarkdownTone.Answer
-        val textColor = if (answer) colors.onSurface else colors.onSurfaceVariantSummary
+        // 自定义回复颜色只接管 Answer；思考过程始终用弱化色。
+        val override = answerColor?.takeIf { answer }
+        val textColor = override ?: if (answer) colors.onSurface else colors.onSurfaceVariantSummary
         val body = (if (answer) textStyles.body1 else textStyles.body2).copy(
             fontSize = if (answer) 16.sp else 14.sp,
             lineHeight = if (answer) ANSWER_LINE_HEIGHT_SP.sp else THINKING_LINE_HEIGHT_SP.sp,
@@ -87,8 +89,10 @@ internal fun rememberMarkdownStyle(tone: MarkdownTone): MarkdownStyle {
             ),
             table = body.copy(fontSize = if (answer) 14.sp else 13.sp, lineHeight = if (answer) 21.sp else 19.sp),
             textColor = textColor,
-            secondaryColor = colors.onSurfaceVariantSummary,
-            markerColor = if (answer) colors.onSurface.copy(alpha = 0.55f) else colors.onSurfaceVariantSummary,
+            // 引用等弱化段落跟着自定义颜色走，只降低不透明度，避免一页里出现两套色系。
+            secondaryColor = override?.copy(alpha = 0.72f) ?: colors.onSurfaceVariantSummary,
+            markerColor = override?.copy(alpha = 0.55f)
+                ?: if (answer) colors.onSurface.copy(alpha = 0.55f) else colors.onSurfaceVariantSummary,
             dividerColor = colors.outline.copy(alpha = 0.6f),
             codeBackground = colors.surfaceContainer,
             tableHeaderBackground = colors.surfaceContainer,

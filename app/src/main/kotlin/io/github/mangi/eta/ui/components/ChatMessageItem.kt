@@ -87,6 +87,7 @@ import androidx.compose.ui.unit.sp
 import io.github.mangi.eta.R
 import io.github.mangi.eta.agent.model.AgentFileReferencePromptCodec
 import io.github.mangi.eta.agent.overlay.toolDisplayName
+import io.github.mangi.eta.ui.app.LocalAiReplyTextColor
 import io.github.mangi.eta.ui.markdown.MarkdownTone
 import io.github.mangi.eta.ui.markdown.StaticMarkdown
 import io.github.mangi.eta.ui.markdown.StreamingMarkdown
@@ -552,6 +553,8 @@ private fun AgentMessageBlock(
     @Suppress("DEPRECATION")
     val clipboardManager = LocalClipboardManager.current
     val haptic = LocalHapticFeedback.current
+    // 壁纸模式下用户可能给 AI 回复挑了一个和背景反差更大的颜色；null 表示跟随主题。
+    val replyTextColor = LocalAiReplyTextColor.current
     var copied by remember(message.id) { mutableStateOf(false) }
     val keepStreamingMarkdown = remember(message.id) { message.isStreaming }
     DisposableEffect(retainedStreamingState) {
@@ -607,6 +610,7 @@ private fun AgentMessageBlock(
                     content = message.content,
                     isStreaming = message.isStreaming,
                     tone = MarkdownTone.Answer,
+                    answerColor = replyTextColor,
                     onRevealCompleteChange = { streamingRevealComplete = it },
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -616,6 +620,7 @@ private fun AgentMessageBlock(
                     StaticMarkdown(
                         content = message.content,
                         tone = MarkdownTone.Answer,
+                        answerColor = replyTextColor,
                         parsed = completedDocument,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -626,7 +631,8 @@ private fun AgentMessageBlock(
                     Text(
                         text = message.content,
                         style = MiuixTheme.textStyles.body1,
-                        color = MiuixTheme.colorScheme.onSurface,
+                        // 纯文本兜底与 Markdown 正文共用同一个颜色，避免同一段回答里两种颜色。
+                        color = replyTextColor ?: MiuixTheme.colorScheme.onSurface,
                     )
                 }
             }

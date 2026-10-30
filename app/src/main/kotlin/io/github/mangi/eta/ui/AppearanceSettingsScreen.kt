@@ -10,9 +10,17 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -24,11 +32,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.mangi.eta.R
+import io.github.mangi.eta.data.model.AI_REPLY_TEXT_COLORS
 import io.github.mangi.eta.data.model.AppearanceAccentColor
 import io.github.mangi.eta.data.model.AppearancePaletteStyle
 import io.github.mangi.eta.data.model.AppearanceSettings
@@ -593,6 +604,29 @@ internal fun AppearanceSettingsScreen(onBack: () -> Unit) {
                         )
                     }
                 }
+                EtaPreferenceDivider(hasLeading = false)
+                EtaArrowPreference(
+                    title = stringResource(R.string.chat_background_ai_text_color),
+                    summary = stringResource(R.string.chat_background_ai_text_color_summary),
+                    endActions = {
+                        val current = chatBackground.aiReplyTextColor
+                        Text(
+                            text = current?.let { "#%06X".format(it and 0xFFFFFF) }
+                                ?: stringResource(R.string.chat_background_ai_text_color_following),
+                            fontSize = MiuixTheme.textStyles.body2.fontSize,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantActions,
+                        )
+                    },
+                    bottomAction = {
+                        AiReplyTextColorSwatches(
+                            selected = chatBackground.aiReplyTextColor,
+                            onSelect = { value ->
+                                updateBackground { it.copy(aiReplyTextColor = value) }
+                            },
+                        )
+                    },
+                    onClick = null,
+                )
             }
         }
     }
@@ -631,4 +665,51 @@ private fun ChatBackgroundImportFailure.messageRes(): Int = when (this) {
     ChatBackgroundImportFailure.UNREADABLE_MEDIA -> R.string.chat_background_error_unreadable
     ChatBackgroundImportFailure.DECODE_FAILED -> R.string.chat_background_error_decode
     ChatBackgroundImportFailure.VIDEO_TOO_LARGE -> R.string.chat_background_error_video_too_large
+}
+
+/**
+ * AI 回复文字颜色的取色条。
+ *
+ * 只给固定色板而不是完整取色器：这里要解决的是"壁纸太亮/太暗，正文看不清"，
+ * 反差够大比颜色精确更重要，色板点一下就能看到效果，也不用额外引入取色器依赖。
+ * 第一格是"跟随主题"（null），形状与其它色块一致，靠主题色本身区分。
+ */
+@Composable
+private fun AiReplyTextColorSwatches(
+    selected: Int?,
+    onSelect: (Int?) -> Unit,
+) {
+    val fallback = MiuixTheme.colorScheme.onSurface
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        AI_REPLY_TEXT_COLORS.chunked(7).forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                row.forEach { value ->
+                    val isSelected = selected == value
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(28.dp)
+                            .clip(CircleShape)
+                            .background(value?.let { Color(it) } ?: fallback)
+                            .border(
+                                width = if (isSelected) 2.dp else 1.dp,
+                                color = if (isSelected) {
+                                    MiuixTheme.colorScheme.primary
+                                } else {
+                                    MiuixTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                                },
+                                shape = CircleShape,
+                            )
+                            .clickable { onSelect(value) },
+                    )
+                }
+            }
+        }
+    }
 }

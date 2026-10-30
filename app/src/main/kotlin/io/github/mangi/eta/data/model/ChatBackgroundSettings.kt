@@ -55,6 +55,13 @@ data class ChatBackgroundSettings(
     val inputBarAlpha: Float = DEFAULT_INPUT_BAR_ALPHA,
     /** 壁纸模式下空会话页快捷卡片的不透明度。 */
     val suggestionAlpha: Float = DEFAULT_SUGGESTION_ALPHA,
+    /**
+     * 壁纸模式下 AI 回复正文的文字颜色，以 ARGB 整数保存。
+     *
+     * null 表示跟随主题；只有铺着壁纸时生效，撤掉壁纸后自动回到主题色，
+     * 避免用户在浅色主题下留着一份"白字"把聊天读成一片空白。
+     */
+    val aiReplyTextColor: Int? = null,
 ) {
     val isActive: Boolean
         get() = mode != ChatBackgroundMode.NONE && !mediaFile.isNullOrBlank()
@@ -85,3 +92,21 @@ const val MAX_BAR_ALPHA = 1f
 const val DEFAULT_TOP_BAR_ALPHA = 0.55f
 const val DEFAULT_INPUT_BAR_ALPHA = 0.82f
 const val DEFAULT_SUGGESTION_ALPHA = 0.65f
+
+/** 设置页里给用户挑的 AI 回复文字颜色（ARGB），第一项 null 表示跟随主题。 */
+val AI_REPLY_TEXT_COLORS: List<Int?> = listOf(
+    null,
+    0xFFFFFFFF.toInt(), // 白
+    0xFFF4EFE3.toInt(), // 米白
+    0xFFD8D8D8.toInt(), // 浅灰
+    0xFF9A9A9A.toInt(), // 中灰
+    0xFF3A3A3A.toInt(), // 深灰
+    0xFF101010.toInt(), // 近黑
+    0xFFFFE066.toInt(), // 亮黄
+    0xFFFFB25C.toInt(), // 橙
+    0xFFFF8A8A.toInt(), // 珊瑚
+    0xFFFFA8D0.toInt(), // 粉
+    0xFF7BE3A8.toInt(), // 薄荷
+    0xFF6FD6E8.toInt(), // 青
+    0xFF8FBBFF.toInt(), // 天蓝
+)
