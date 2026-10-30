@@ -1,6 +1,7 @@
 package io.github.mangi.eta.ui
 
 import android.net.Uri
+import android.graphics.Color as AndroidColor
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -13,14 +14,23 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -33,7 +43,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -121,6 +135,38 @@ internal fun AppearanceSettingsScreen(onBack: () -> Unit) {
     // 选择器的结果回调跑在 DataStore 写入完成之前，读不到刚刚切换的 mode，
     // 因此单独记住本次要导入的媒体类型。
     var pendingImportMode by remember { mutableStateOf(ChatBackgroundMode.IMAGE) }
+
+    // 自定义取色：色相条 + 饱和度/明度面板 + 十六进制兜底输入。
+    // 三态是唯一真相，hex 输入框跟它双向同步；不存 alpha，文字颜色一律不透明。
+    var showAiTextColorDialog by remember { mutableStateOf(false) }
+    var pickerHue by remember { mutableFloatStateOf(0f) }
+    var pickerSaturation by remember { mutableFloatStateOf(0f) }
+    var pickerValue by remember { mutableFloatStateOf(1f) }
+    var pickerHex by remember { mutableStateOf("FFFFFF") }
+    val aiTextColorSeed = MiuixTheme.colorScheme.onSurface
+
+    fun syncHexFromPicker() {
+        pickerHex = "%06X".format(
+            Color.hsv(pickerHue % 360f, pickerSaturation, pickerValue).toArgb() and 0xFFFFFF,
+        )
+    }
+
+    fun applyHexToPicker(text: String) {
+        if (text.length != 6) return
+        val argb = text.toIntOrNull(16) ?: return
+        val hsv = FloatArray(3)
+        AndroidColor.colorToHSV(argb or 0xFF000000.toInt(), hsv)
+        pickerHue = hsv[0]
+        pickerSaturation = hsv[1]
+        pickerValue = hsv[2]
+    }
+
+    fun openAiTextColorPicker() {
+        val seed = chatBackground.aiReplyTextColor ?: aiTextColorSeed.toArgb()
+        applyHexToPicker("%06X".format(seed and 0xFFFFFF))
+        pickerHex = "%06X".format(seed and 0xFFFFFF)
+        showAiTextColorDialog = true
+    }
 
     fun updateBackground(transform: (ChatBackgroundSettings) -> ChatBackgroundSettings) {
         coroutineScope.launch { ChatBackgroundRepository.update(transform) }
@@ -623,6 +669,7 @@ internal fun AppearanceSettingsScreen(onBack: () -> Unit) {
                             onSelect = { value ->
                                 updateBackground { it.copy(aiReplyTextColor = value) }
                             },
+                            onCustomClick = { openAiTextColorPicker() },
                         )
                     },
                     onClick = null,
@@ -659,6 +706,117 @@ internal fun AppearanceSettingsScreen(onBack: () -> Unit) {
             )
         }
     }
+
+    // 自定义取色。故意不做实时预览（用户明确不要），确认后才写入设置，
+    // 取消等于什么都没发生——所以这里不必缓存旧值。
+    EtaWindowDialog(
+        show = showAiTextColorDialog,
+        title = stringResource(R.string.chat_background_ai_text_color),
+        summary = stringResource(R.string.chat_background_ai_text_color_custom_summary),
+        onDismissRequest = { showAiTextColorDialog = false },
+    ) {
+        Column {
+            val pickerColor = Color.hsv(pickerHue % 360f, pickerSaturation, pickerValue)
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(24.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Brush.horizontalGradient(HUE_TRACK_COLORS))
+                    .colorTrackDrag { x, _, width, _ ->
+                        // 359.9 而不是 360：Color.hsv 要求色相落在左闭右开区间 0 到 360
+                        pickerHue = (x / width).coerceIn(0f, 1f) * 359.9f
+                        syncHexFromPicker()
+                    },
+            ) {
+                val trackWidth = maxWidth
+                Box(
+                    modifier = Modifier
+                        .offset(x = (trackWidth - 6.dp) * (pickerHue / 359.9f))
+                        .width(6.dp)
+                        .fillMaxHeight()
+                        .background(Color.White),
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(Color.White, Color.hsv(pickerHue % 360f, 1f, 1f)),
+                        ),
+                    )
+                    .colorTrackDrag { x, y, width, height ->
+                        pickerSaturation = (x / width).coerceIn(0f, 1f)
+                        pickerValue = 1f - (y / height).coerceIn(0f, 1f)
+                        syncHexFromPicker()
+                    },
+            ) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(
+                            Brush.verticalGradient(listOf(Color.Transparent, Color.Black)),
+                        ),
+                )
+                val panelWidth = maxWidth
+                val panelHeight = maxHeight
+                Box(
+                    modifier = Modifier
+                        .offset(
+                            x = (panelWidth - 20.dp) * pickerSaturation,
+                            y = (panelHeight - 20.dp) * (1f - pickerValue),
+                        )
+                        .size(20.dp)
+                        .clip(CircleShape)
+                        .background(pickerColor)
+                        .border(2.dp, Color.White, CircleShape),
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(pickerColor)
+                        .border(
+                            1.dp,
+                            MiuixTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                            RoundedCornerShape(10.dp),
+                        ),
+                )
+                Spacer(Modifier.size(12.dp))
+                TextField(
+                    value = pickerHex,
+                    onValueChange = { raw ->
+                        // 只留十六进制字符，最多 6 位；满 6 位才回填给色相/饱和度/明度。
+                        val filtered = raw
+                            .filter { it.isDigit() || it.lowercaseChar() in 'a'..'f' }
+                            .uppercase()
+                            .take(6)
+                        pickerHex = filtered
+                        applyHexToPicker(filtered)
+                    },
+                    label = stringResource(R.string.chat_background_ai_text_color_hex),
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            MiuixDialogActions(
+                confirmText = stringResource(R.string.action_confirm),
+                onCancel = { showAiTextColorDialog = false },
+                onConfirm = {
+                    updateBackground { it.copy(aiReplyTextColor = pickerColor.toArgb()) }
+                    showAiTextColorDialog = false
+                },
+                modifier = Modifier.padding(top = 16.dp),
+            )
+        }
+    }
 }
 
 private fun ChatBackgroundImportFailure.messageRes(): Int = when (this) {
@@ -670,16 +828,19 @@ private fun ChatBackgroundImportFailure.messageRes(): Int = when (this) {
 /**
  * AI 回复文字颜色的取色条。
  *
- * 只给固定色板而不是完整取色器：这里要解决的是"壁纸太亮/太暗，正文看不清"，
- * 反差够大比颜色精确更重要，色板点一下就能看到效果，也不用额外引入取色器依赖。
- * 第一格是"跟随主题"（null），形状与其它色块一致，靠主题色本身区分。
+ * 常用色板点一下就能用（要解决的多数是"壁纸太亮/太暗，正文看不清"，反差够大比颜色精确更重要），
+ * 色板不够用时点最下面那格进自定义取色器。第一格是"跟随主题"（null），
+ * 形状与其它色块一致，靠主题色本身区分。
  */
 @Composable
 private fun AiReplyTextColorSwatches(
     selected: Int?,
     onSelect: (Int?) -> Unit,
+    onCustomClick: () -> Unit,
 ) {
     val fallback = MiuixTheme.colorScheme.onSurface
+    // 选中值不在色板里 = 用的是自定义色，下面那格要高亮并显示十六进制。
+    val customArgb = selected?.takeIf { it !in AI_REPLY_TEXT_COLORS }
     Column(
         modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 4.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -710,6 +871,93 @@ private fun AiReplyTextColorSwatches(
                     )
                 }
             }
+        }
+        // 自定义色入口：外面不再套一层圆角卡片，直接做成一颗胶囊，跟上面的圆点区分开。
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(40.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(MiuixTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+                .border(
+                    width = if (customArgb != null) 2.dp else 1.dp,
+                    color = if (customArgb != null) {
+                        MiuixTheme.colorScheme.primary
+                    } else {
+                        MiuixTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                    },
+                    shape = RoundedCornerShape(20.dp),
+                )
+                .clickable { onCustomClick() }
+                .padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(20.dp)
+                    .clip(CircleShape)
+                    .then(
+                        if (customArgb != null) {
+                            Modifier.background(Color(customArgb))
+                        } else {
+                            Modifier.background(Brush.linearGradient(HUE_TRACK_COLORS))
+                        },
+                    ),
+            )
+            Spacer(Modifier.size(10.dp))
+            Text(
+                text = stringResource(R.string.chat_background_ai_text_color_custom),
+                fontSize = MiuixTheme.textStyles.body2.fontSize,
+                color = MiuixTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.weight(1f))
+            if (customArgb != null) {
+                Text(
+                    text = "#%06X".format(customArgb and 0xFFFFFF),
+                    fontSize = MiuixTheme.textStyles.body2.fontSize,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantActions,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 色相条用的渐变停靠点，0° 与 360° 都是红，首尾重复才不会出现硬边。
+ */
+private val HUE_TRACK_COLORS = listOf(
+    Color(0xFFFF5B5B),
+    Color(0xFFFFD24C),
+    Color(0xFF5BDB84),
+    Color(0xFF4CD0E0),
+    Color(0xFF5B8CFF),
+    Color(0xFFC06BFF),
+    Color(0xFFFF5B5B),
+)
+
+/**
+ * 在矩形里连续取位置：按下即回调，拖动持续回调。
+ *
+ * 归一化留给调用方：色相条只关心 x，饱和度/明度面板 x、y 都要。
+ */
+private fun Modifier.colorTrackDrag(
+    onPosition: (x: Float, y: Float, width: Float, height: Float) -> Unit,
+): Modifier = this.pointerInput(Unit) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        onPosition(down.position.x, down.position.y, size.width.toFloat(), size.height.toFloat())
+        down.consume()
+        while (true) {
+            val event = awaitPointerEvent()
+            val change = event.changes.firstOrNull() ?: break
+            if (!change.pressed) break
+            onPosition(
+                change.position.x,
+                change.position.y,
+                size.width.toFloat(),
+                size.height.toFloat(),
+            )
+            change.consume()
         }
     }
 }

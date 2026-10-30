@@ -200,6 +200,9 @@
   <string name="chat_background_ai_text_color">AI 回覆文字顏色</string>
   <string name="chat_background_ai_text_color_summary">只在鋪著聊天壁紙時生效；挑一個和壁紙反差更大的顏色能提高可讀性，撤掉壁紙會回到主題色</string>
   <string name="chat_background_ai_text_color_following">跟隨主題</string>
+  <string name="chat_background_ai_text_color_custom">自訂…</string>
+  <string name="chat_background_ai_text_color_custom_summary">拖動色相條選顏色，再點面板調整飽和度和亮度；也可以直接輸入十六進位色值</string>
+  <string name="chat_background_ai_text_color_hex">十六進位色值</string>
   <string name="chat_background_scale">填充方式</string>
   <string name="chat_background_scale_cover">填滿</string>
   <string name="chat_background_scale_contain">完整</string>

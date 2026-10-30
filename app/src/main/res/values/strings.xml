@@ -200,6 +200,9 @@
   <string name="chat_background_ai_text_color">AI reply text color</string>
   <string name="chat_background_ai_text_color_summary">Applies only while a chat wallpaper is set. Pick a color that contrasts with the wallpaper; removing the wallpaper restores the theme color</string>
   <string name="chat_background_ai_text_color_following">Follow theme</string>
+  <string name="chat_background_ai_text_color_custom">Custom…</string>
+  <string name="chat_background_ai_text_color_custom_summary">Drag the hue bar to pick a hue, then tap the panel to fine-tune saturation and brightness. A hex value works too</string>
+  <string name="chat_background_ai_text_color_hex">Hex color</string>
   <string name="chat_background_scale">Fill mode</string>
   <string name="chat_background_scale_cover">Fill</string>
   <string name="chat_background_scale_contain">Fit</string>
