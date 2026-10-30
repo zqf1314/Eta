@@ -361,87 +361,96 @@ private fun AgentChatScaffold(
         drawContent()
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        containerColor = Color.Transparent,
-        contentWindowInsets = WindowInsets(
-            left = 0.dp,
-            top = 0.dp,
-            right = 0.dp,
-            bottom = 0.dp,
-        ),
-        bottomBar = {
-            AgentChatBottomBar(
-                messageBackdrop = messageBackdrop.takeIf { frostEnabled },
-                input = input,
-                modelPickerState = modelPickerState,
-                isCompacting = isCompacting,
-                contextUsage = contextUsage,
-                showContextUsage = hasMessages,
-                isStreaming = isStreaming,
-                reasoningEffort = reasoningEffort,
-                availableReasoningEfforts = availableReasoningEfforts,
-                pendingImages = pendingImages,
-                pendingFileReferences = pendingFileReferences,
-                queuedMessages = queuedMessages,
-                inputSyncVersion = inputSyncVersion,
-                messageEdit = messageEdit,
-                onSubmit = onSubmit,
-                onInterruptAndSubmit = onInterruptAndSubmit,
-                onSteerQueuedMessage = onSteerQueuedMessage,
-                onRecallQueuedMessage = onRecallQueuedMessage,
-                onRemoveQueuedMessage = onRemoveQueuedMessage,
-                onReasoningEffortChange = onReasoningEffortChange,
-                onCompactContext = onCompactContext,
-                canCompactContext = canCompactContext,
-                onModelSelected = onModelSelected,
-                onStop = onStop,
-                onAttachImage = onAttachImage,
-                onRemoveImage = onRemoveImage,
-                onAttachFiles = onAttachFiles,
-                onAttachFolder = onAttachFolder,
-                onAttachFilePath = onAttachFilePath,
-                onRemoveFileReference = onRemoveFileReference,
-                onCancelMessageEdit = onCancelMessageEdit,
-            )
-        },
-    ) { innerPadding ->
-        val bottomPadding = innerPadding.calculateBottomPadding()
-        if (!hasMessages) {
-            EmptyChatState(
-                showSuggestions = showEmptySuggestions,
-                onSuggestionClick = onSuggestionClick,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = bottomPadding),
-            )
-        } else {
-            AgentConversationMessages(
-                visibleMessages = visibleMessages,
-                scrollState = scrollState,
-                isStreaming = isStreaming,
-                bottomInset = bottomPadding,
-                keepBottomAnchored = keepBottomAnchored,
-                onBottomAnchorChanged = onBottomAnchorChanged,
-                onSuggestionClick = onSuggestionClick,
-                onRunTraceClick = onRunTraceClick,
-                onOpenBrowser = onOpenBrowser,
-                onEditMessage = onEditMessage,
-                onDeleteMessage = onDeleteMessage,
-                onRegenerateMessage = onRegenerateMessage,
-                onSelectReplyCandidate = onSelectReplyCandidate,
-                messageActionsEnabled = !isStreaming && messageEdit == null,
-                editTargetMessageId = messageEdit?.targetMessageId,
-                currentBrowserMessageId = currentBrowserMessageId,
-                hasEarlierMessages = hasEarlierMessages,
-                messageStartIndex = messageStartIndex,
-                historyLoadState = historyLoadState,
-                onLoadEarlierMessages = onLoadEarlierMessages,
-                onHistoryViewportChanged = onHistoryViewportChanged,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .then(if (frostEnabled) Modifier.layerBackdrop(messageBackdrop) else Modifier),
-            )
+    // 背景层必须包在 Scaffold 外面：Scaffold 的 containerColor 已是透明，
+    // 同时把 layerBackdrop 提到这一层，底部输入栏的毛玻璃才能采样到壁纸。
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .then(if (frostEnabled) Modifier.layerBackdrop(messageBackdrop) else Modifier),
+    ) {
+        ChatBackgroundLayer(modifier = Modifier.fillMaxSize())
+
+        Scaffold(
+            modifier = modifier.fillMaxSize(),
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(
+                left = 0.dp,
+                top = 0.dp,
+                right = 0.dp,
+                bottom = 0.dp,
+            ),
+            bottomBar = {
+                AgentChatBottomBar(
+                    messageBackdrop = messageBackdrop.takeIf { frostEnabled },
+                    input = input,
+                    modelPickerState = modelPickerState,
+                    isCompacting = isCompacting,
+                    contextUsage = contextUsage,
+                    showContextUsage = hasMessages,
+                    isStreaming = isStreaming,
+                    reasoningEffort = reasoningEffort,
+                    availableReasoningEfforts = availableReasoningEfforts,
+                    pendingImages = pendingImages,
+                    pendingFileReferences = pendingFileReferences,
+                    queuedMessages = queuedMessages,
+                    inputSyncVersion = inputSyncVersion,
+                    messageEdit = messageEdit,
+                    onSubmit = onSubmit,
+                    onInterruptAndSubmit = onInterruptAndSubmit,
+                    onSteerQueuedMessage = onSteerQueuedMessage,
+                    onRecallQueuedMessage = onRecallQueuedMessage,
+                    onRemoveQueuedMessage = onRemoveQueuedMessage,
+                    onReasoningEffortChange = onReasoningEffortChange,
+                    onCompactContext = onCompactContext,
+                    canCompactContext = canCompactContext,
+                    onModelSelected = onModelSelected,
+                    onStop = onStop,
+                    onAttachImage = onAttachImage,
+                    onRemoveImage = onRemoveImage,
+                    onAttachFiles = onAttachFiles,
+                    onAttachFolder = onAttachFolder,
+                    onAttachFilePath = onAttachFilePath,
+                    onRemoveFileReference = onRemoveFileReference,
+                    onCancelMessageEdit = onCancelMessageEdit,
+                )
+            },
+        ) { innerPadding ->
+            val bottomPadding = innerPadding.calculateBottomPadding()
+            if (!hasMessages) {
+                EmptyChatState(
+                    showSuggestions = showEmptySuggestions,
+                    onSuggestionClick = onSuggestionClick,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = bottomPadding),
+                )
+            } else {
+                AgentConversationMessages(
+                    visibleMessages = visibleMessages,
+                    scrollState = scrollState,
+                    isStreaming = isStreaming,
+                    bottomInset = bottomPadding,
+                    keepBottomAnchored = keepBottomAnchored,
+                    onBottomAnchorChanged = onBottomAnchorChanged,
+                    onSuggestionClick = onSuggestionClick,
+                    onRunTraceClick = onRunTraceClick,
+                    onOpenBrowser = onOpenBrowser,
+                    onEditMessage = onEditMessage,
+                    onDeleteMessage = onDeleteMessage,
+                    onRegenerateMessage = onRegenerateMessage,
+                    onSelectReplyCandidate = onSelectReplyCandidate,
+                    messageActionsEnabled = !isStreaming && messageEdit == null,
+                    editTargetMessageId = messageEdit?.targetMessageId,
+                    currentBrowserMessageId = currentBrowserMessageId,
+                    hasEarlierMessages = hasEarlierMessages,
+                    messageStartIndex = messageStartIndex,
+                    historyLoadState = historyLoadState,
+                    onLoadEarlierMessages = onLoadEarlierMessages,
+                    onHistoryViewportChanged = onHistoryViewportChanged,
+                    modifier = Modifier
+                        .fillMaxSize()
+                )
+            }
         }
     }
 }
