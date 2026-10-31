@@ -34,6 +34,7 @@ internal object SettingsDataStore {
     private val SUBAGENT_SETTINGS = stringPreferencesKey("subagent_settings_v1")
     private val CHAT_BACKGROUND_SETTINGS = stringPreferencesKey("chat_background_settings_v1")
     private val OVERLAY_AVATAR_FILE = stringPreferencesKey("overlay_avatar_file_v1")
+    private val OVERLAY_CAPSULE_SKIN = stringPreferencesKey("overlay_capsule_skin_v1")
     private val speechJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
     fun speechSettingsFlow(): Flow<SpeechSettings> {
@@ -133,6 +134,26 @@ internal object SettingsDataStore {
     suspend fun setOverlayAvatarFile(fileName: String?) {
         ensureInitialized()
         dataStore.edit { prefs -> prefs.putOrRemove(OVERLAY_AVATAR_FILE, fileName) }
+    }
+
+    /**
+     * 悬浮胶囊的贴纸皮肤，存 wireName 而不是 ordinal：
+     * 以后调整枚举顺序不会把用户设置读串。
+     */
+    fun overlayCapsuleSkinFlow(): Flow<String> {
+        ensureInitialized()
+        return dataStore.data
+            .catch { cause ->
+                if (cause is IOException) emit(emptyPreferences()) else throw cause
+            }
+            .map { prefs -> prefs[OVERLAY_CAPSULE_SKIN]?.takeIf { it.isNotBlank() } ?: "anime" }
+    }
+
+    suspend fun overlayCapsuleSkin(): String = overlayCapsuleSkinFlow().first()
+
+    suspend fun setOverlayCapsuleSkin(wireName: String) {
+        ensureInitialized()
+        dataStore.edit { prefs -> prefs[OVERLAY_CAPSULE_SKIN] = wireName }
     }
 
     private const val STORE_NAME = "eta_settings"

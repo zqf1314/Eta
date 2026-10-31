@@ -75,6 +75,8 @@ import io.github.mangi.eta.data.repository.AppearanceSettingsRepository
 import io.github.mangi.eta.data.repository.ChatBackgroundImportFailure
 import io.github.mangi.eta.data.repository.ChatBackgroundImportResult
 import io.github.mangi.eta.data.repository.ChatBackgroundRepository
+import io.github.mangi.eta.agent.overlay.OverlayCapsuleSkin
+import io.github.mangi.eta.agent.overlay.OverlayCapsuleSkinRepository
 import io.github.mangi.eta.data.repository.OverlayAvatarImportResult
 import io.github.mangi.eta.data.repository.OverlayAvatarRepository
 import io.github.mangi.eta.ui.app.LocalAppearanceSettings
@@ -208,6 +210,15 @@ internal fun AppearanceSettingsScreen(onBack: () -> Unit) {
 
     // Agent 悬浮胶囊头像：和聊天背景一样，相册图先复制进私有目录，这里只存文件名。
     val avatarFile by OverlayAvatarRepository.fileFlow().collectAsState(initial = null)
+
+    // 胶囊皮肤：只改描边、圆角、角标的绘制参数，切换立刻生效，不需要重启服务。
+    val capsuleSkin by OverlayCapsuleSkinRepository.flow()
+        .collectAsState(initial = OverlayCapsuleSkin.ANIME)
+    val capsuleSkinOptions = OverlayCapsuleSkin.entries
+    val capsuleSkinLabels = listOf(
+        stringResource(R.string.overlay_capsule_skin_anime),
+        stringResource(R.string.overlay_capsule_skin_classic),
+    )
 
     fun importAvatar(uri: Uri?) {
         if (uri == null) return
@@ -714,10 +725,23 @@ internal fun AppearanceSettingsScreen(onBack: () -> Unit) {
                     },
                 )
                 EtaPreferenceDivider(hasLeading = false)
+                EtaPreferenceDivider(hasLeading = false)
                 EtaArrowPreference(
                     title = stringResource(R.string.overlay_avatar_reset),
                     enabled = avatarFile != null,
                     onClick = { coroutineScope.launch { OverlayAvatarRepository.clear(context) } },
+                )
+                EtaPreferenceDivider(hasLeading = false)
+                EtaOverlayDropdownPreference(
+                    title = stringResource(R.string.overlay_capsule_skin_title),
+                    summary = capsuleSkinLabels.getOrElse(capsuleSkin.ordinal) { "" },
+                    items = capsuleSkinLabels,
+                    selectedIndex = capsuleSkin.ordinal,
+                    onSelectedIndexChange = { index ->
+                        capsuleSkinOptions.getOrNull(index)?.let { skin ->
+                            coroutineScope.launch { OverlayCapsuleSkinRepository.set(skin) }
+                        }
+                    },
                 )
             }
         }

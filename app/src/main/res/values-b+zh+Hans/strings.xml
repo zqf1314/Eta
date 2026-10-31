@@ -338,6 +338,9 @@
   <string name="overlay_avatar_settings">选择头像</string>
   <string name="overlay_avatar_settings_summary">Agent 执行时在悬浮胶囊里旋转显示</string>
   <string name="overlay_avatar_reset">恢复默认图标</string>
+  <string name="overlay_capsule_skin_title">胶囊外观</string>
+  <string name="overlay_capsule_skin_anime">二次元贴纸</string>
+  <string name="overlay_capsule_skin_classic">经典贴纸</string>
   <string name="overlay_avatar_import_failed">这张图读不出来，换一张试试</string>
   <string name="action_regenerate">重新生成</string>
   <string name="conversation_regenerate_current_turn">当前轮次将由新生成的回复替换。</string>

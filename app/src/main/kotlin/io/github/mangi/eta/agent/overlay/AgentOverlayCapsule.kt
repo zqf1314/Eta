@@ -44,7 +44,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Pause
@@ -154,6 +153,12 @@ internal fun AgentOverlayCapsule(
     )
     val accent by animateColorAsState(overlayPhaseAccent(state.phase), tween(240), label = "capsule_accent")
 
+    // 皮肤只改绘制参数：换皮肤不改尺寸、不改排版，也不会让状态文字变窄。
+    val capsuleStyle = OverlayCapsuleSkinRepository.flow()
+        .collectAsState(initial = OverlayCapsuleSkin.ANIME)
+        .value
+        .style()
+
     // 四态切换原本只有文字和外环换色，安静得像没反应；这里给整颗胶囊打一次状态色脉冲。
     val phaseFlash = remember { Animatable(0f) }
     LaunchedEffect(state.phase) {
@@ -194,20 +199,20 @@ internal fun AgentOverlayCapsule(
                     // 二次元贴纸：粗白外描边画在裁剪之外，胶囊本体再压上去。
                     .shadow(
                         elevation = 10.dp,
-                        shape = CapsuleShape,
+                        shape = capsuleStyle.corners,
                         ambientColor = NeonPurple,
                         spotColor = accent,
                     )
-                    .drawBehind { drawStickerOutline() }
-                    .clip(CapsuleShape)
-                    .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.96f))
+                    .drawBehind { drawStickerOutline(capsuleStyle) }
+                    .clip(capsuleStyle.corners)
+                    .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = capsuleStyle.backgroundAlpha))
                     .background(StickerTintBrush)
                     .drawBehind {
                         drawPhaseFlash(accent, phaseFlash.value)
                         drawStickerSheen()
-                        drawCornerStar(state.phase)
+                        if (capsuleStyle.showCornerStar) drawCornerStar(state.phase)
                     }
-                    .border(CapsuleBorderWidth, StickerBorderBrush, CapsuleShape),
+                    .border(capsuleStyle.borderWidth, StickerBorderBrush, capsuleStyle.corners),
             ) {
                 Row(
                     modifier = Modifier
@@ -458,24 +463,8 @@ private fun CapsuleAction(icon: ImageVector, label: String, tint: Color, onClick
 private val CapsuleCorner = 22.dp
 private val CapsuleWidth = 248.dp
 
-/** 右下角收窄，做出手绘气泡那种不对称感，避免整颗胶囊像系统通知条。 */
-private val CapsuleTailCorner = 10.dp
-
-/** 粗白外描边：贴在渐变描边之外的二次元贴纸白边，画在裁剪层外面。 */
-private val CapsuleOutlineWidth = 3.dp
-
-/** 渐变描边宽度。 */
-private val CapsuleBorderWidth = 1.5.dp
-
 /** 展开态操作按钮直径。 */
 private val CapsuleActionSize = 36.dp
-
-private val CapsuleShape = RoundedCornerShape(
-    topStart = CapsuleCorner,
-    topEnd = CapsuleCorner,
-    bottomEnd = CapsuleTailCorner,
-    bottomStart = CapsuleCorner,
-)
 
 /** 头像直径。比原来的 14dp 状态点大一圈，圆形头像要看得清脸。 */
 private val AvatarSize = 26.dp
@@ -538,13 +527,14 @@ private fun DrawScope.drawStickerSheen() {
  *
  * 必须挂在 `clip` 之前，否则会被自身圆角裁掉，只剩一圈发光没有白边。
  */
-private fun DrawScope.drawStickerOutline() {
-    val w = CapsuleOutlineWidth.toPx()
+private fun DrawScope.drawStickerOutline(style: OverlayCapsuleStyle) {
+    if (style.outlineWidth <= 0.dp) return
+    val w = style.outlineWidth.toPx()
     drawRoundRect(
         color = Color.White.copy(alpha = 0.92f),
         topLeft = Offset(-w, -w),
         size = Size(size.width + w * 2f, size.height + w * 2f),
-        cornerRadius = CornerRadius(CapsuleCorner.toPx() + w),
+        cornerRadius = CornerRadius(style.outlineCornerRadius.toPx()),
     )
 }
 
