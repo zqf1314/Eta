@@ -1178,15 +1178,18 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
     }
 
     /**
-     * 面板底边实测值：面板铺到哪，挂件就推到哪，并保持 PENDANT_GAP_DP 的咬合量。
+     * 面板底边实测值：面板铺到哪，挂件的顶边就贴到哪。
      *
      * 不能用窗口高度算：展开档 124dp、输入档 260dp 都只是给面板留的窗口空间，
      * 面板本身按内容高走，窗口下面那截是透明的，拿窗口高度算会把角色推得太低。
+     *
+     * 也不能留咬合量：挂件窗口是在胶囊之后加进去的，层级在胶囊之上，
+     * 只要留一点重叠，角色就会压在胶囊白面上，看着像贴错了地方。
      */
     private fun pendantShiftFor(panelBottomPx: Int): Float {
         if (panelBottomPx <= 0) return 0f
         val topInWindow = dpToPx(CAPSULE_COLLAPSED_HEIGHT_DP - PENDANT_LIFT_DP)
-        return (panelBottomPx - dpToPx(PENDANT_GAP_DP) - topInWindow).coerceAtLeast(0).toFloat()
+        return (panelBottomPx - topInWindow).coerceAtLeast(0).toFloat()
     }
 
     /** 面板底边变了（展开、收起、进入输入模式）就重新对齐挂件。 */
@@ -1606,8 +1609,6 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
          * 窗口本身透明且 FLAG_NOT_TOUCHABLE，多出来的这块只给动画用，不产生死区。
          */
         private const val PENDANT_SLIDE_MAX_DP = 200
-        /** 挂件顶边相对面板底边的咬合量：支架压住胶囊下沿这么多。 */
-        private const val PENDANT_GAP_DP = 18
         /** 展开：面板下来的同时把角色顶下去。 */
         private const val PENDANT_SLIDE_DOWN_MS = 220L
         /** 收起：面板收拢的同时角色滑回原位。 */
@@ -1622,3 +1623,4 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
 
     private class RuntimeConfigUnavailableException : IllegalStateException()
 }
+
