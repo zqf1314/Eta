@@ -49,7 +49,7 @@ class AgentPromptBuilderTest {
             rootAvailable = false,
             executionContext = TerminalExecutionContext(TerminalEnvironment.DEBIAN, null, "/eta/custom workspace"),
         )
-        val terminal = messages.systemContents().single { it.contains("Eta 内置文件与终端工具") }
+        val terminal = messages.systemContents().single { it.contains("大肥鱼内置文件与终端工具") }
         assertTrue(terminal.contains("/eta/custom workspace"))
         assertTrue(terminal.contains("debian"))
         assertTrue(terminal.contains("identity=user"))
