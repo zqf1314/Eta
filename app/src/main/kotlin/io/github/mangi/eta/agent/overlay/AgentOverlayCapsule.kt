@@ -65,9 +65,11 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -90,7 +92,6 @@ import io.github.mangi.eta.data.repository.OverlayAvatarRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -190,21 +191,23 @@ internal fun AgentOverlayCapsule(
                         alpha = 1f - clearance
                         transformOrigin = TransformOrigin(0.5f, 0f)
                     }
-                    // 贴纸质感只留在配色和描边上：全圆角，不做斜切，也不歪。
+                    // 二次元贴纸：粗白外描边画在裁剪之外，胶囊本体再压上去。
                     .shadow(
                         elevation = 10.dp,
-                        shape = RoundedCornerShape(CapsuleCorner),
+                        shape = CapsuleShape,
                         ambientColor = NeonPurple,
                         spotColor = accent,
                     )
-                    .clip(RoundedCornerShape(CapsuleCorner))
-                    .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f))
+                    .drawBehind { drawStickerOutline() }
+                    .clip(CapsuleShape)
+                    .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.96f))
                     .background(StickerTintBrush)
                     .drawBehind {
                         drawPhaseFlash(accent, phaseFlash.value)
                         drawStickerSheen()
+                        drawCornerStar(state.phase)
                     }
-                    .border(1.5.dp, StickerBorderBrush, RoundedCornerShape(CapsuleCorner)),
+                    .border(CapsuleBorderWidth, StickerBorderBrush, CapsuleShape),
             ) {
                 Row(
                     modifier = Modifier
@@ -426,21 +429,53 @@ private fun ThoughtLine(thought: String) {
     )
 }
 
+/**
+ * 展开态的操作按钮：圆形玻璃质感，白描边 + 内高光。
+ *
+ * 原来的方块圆角按钮和胶囊的贴纸圆角打架，换成圆形后整颗胶囊没有直角。
+ */
 @Composable
 private fun CapsuleAction(icon: ImageVector, label: String, tint: Color, onClick: () -> Unit) {
-    IconButton(
-        onClick = onClick,
-        backgroundColor = MiuixTheme.colorScheme.surfaceContainerHigh,
-        minWidth = 40.dp,
-        minHeight = 34.dp,
-        cornerRadius = 17.dp,
+    Box(
+        modifier = Modifier
+            .size(CapsuleActionSize)
+            .shadow(6.dp, CircleShape, ambientColor = NeonPurple, spotColor = NeonPink)
+            .clip(CircleShape)
+            .background(Color.White.copy(alpha = 0.10f))
+            .border(1.dp, Color.White.copy(alpha = 0.26f), CircleShape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
     ) {
-        Icon(imageVector = icon, contentDescription = label, modifier = Modifier.size(17.dp), tint = tint)
+        Icon(imageVector = icon, contentDescription = label, modifier = Modifier.size(18.dp), tint = tint)
     }
 }
 
 private val CapsuleCorner = 22.dp
 private val CapsuleWidth = 248.dp
+
+/** 右下角收窄，做出手绘气泡那种不对称感，避免整颗胶囊像系统通知条。 */
+private val CapsuleTailCorner = 10.dp
+
+/** 粗白外描边：贴在渐变描边之外的二次元贴纸白边，画在裁剪层外面。 */
+private val CapsuleOutlineWidth = 3.dp
+
+/** 渐变描边宽度。 */
+private val CapsuleBorderWidth = 1.5.dp
+
+/** 展开态操作按钮直径。 */
+private val CapsuleActionSize = 36.dp
+
+private val CapsuleShape = RoundedCornerShape(
+    topStart = CapsuleCorner,
+    topEnd = CapsuleCorner,
+    bottomEnd = CapsuleTailCorner,
+    bottomStart = CapsuleCorner,
+)
 
 /** 头像直径。比原来的 14dp 状态点大一圈，圆形头像要看得清脸。 */
 private val AvatarSize = 26.dp
@@ -496,4 +531,42 @@ private fun DrawScope.drawStickerSheen() {
         radius = radius,
         center = center,
     )
+}
+
+/**
+ * 粗白外描边：先画一层比胶囊大 3dp 的白色圆角块，胶囊本体随后压上去，露出来的就是白边。
+ *
+ * 必须挂在 `clip` 之前，否则会被自身圆角裁掉，只剩一圈发光没有白边。
+ */
+private fun DrawScope.drawStickerOutline() {
+    val w = CapsuleOutlineWidth.toPx()
+    drawRoundRect(
+        color = Color.White.copy(alpha = 0.92f),
+        topLeft = Offset(-w, -w),
+        size = Size(size.width + w * 2f, size.height + w * 2f),
+        cornerRadius = CornerRadius(CapsuleCorner.toPx() + w),
+    )
+}
+
+/**
+ * 右上角四角星：二次元贴纸的角标。
+ *
+ * 只用静态透明度区分状态，不额外挂无限动画——胶囊上的常驻动画已经够多了，
+ * 再开会挤压 overlay 窗口的帧预算。
+ */
+private fun DrawScope.drawCornerStar(phase: AgentOverlayPhase) {
+    val r = 4.4.dp.toPx()
+    val cx = size.width - 10.dp.toPx()
+    val cy = 8.dp.toPx()
+    val waist = r * 0.22f
+    val path = Path().apply {
+        moveTo(cx, cy - r)
+        quadraticBezierTo(cx + waist, cy - waist, cx + r, cy)
+        quadraticBezierTo(cx + waist, cy + waist, cx, cy + r)
+        quadraticBezierTo(cx - waist, cy + waist, cx - r, cy)
+        quadraticBezierTo(cx - waist, cy - waist, cx, cy - r)
+        close()
+    }
+    val alpha = if (phase == AgentOverlayPhase.RUNNING) 0.95f else 0.42f
+    drawPath(path, Color.White.copy(alpha = alpha))
 }
