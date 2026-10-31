@@ -1060,7 +1060,7 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
             scaleType = android.widget.ImageView.ScaleType.FIT_XY
             setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
         }
-        val lp = capsuleFrameLayoutParams(bitmap)
+        val lp = capsuleFrameLayoutParams()
         runCatching { wm.addView(frame, lp) }.onFailure { throwable ->
             AndroidAgentLogger.warnThrottled("runtime_capsule_frame_add_view_failed") {
                 "Agent runtime capsule frame addView failed: type=${throwable.safeLogType()}"
@@ -1078,9 +1078,12 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
         capsuleFrameParams = null
     }
 
-    private fun capsuleFrameLayoutParams(bitmap: android.graphics.Bitmap): WindowManager.LayoutParams {
+    private fun capsuleFrameLayoutParams(): WindowManager.LayoutParams {
         val widthPx = dpToPx(CAPSULE_FRAME_WIDTH_DP)
-        val heightPx = (widthPx.toLong() * bitmap.height / bitmap.width).toInt()
+        // 高度不按图片比例算：按比例算会得到 120dp，是胶囊的两倍高；而 overlay 窗口
+        // 又不允许压进状态栏，系统会把整窗往下挤，结果就是框整体偏下、上边花纹被胶囊吃掉。
+        // 直接取胶囊窗口高度，框和胶囊同顶同高，四边露出量才均匀（图片会被垂直压缩）。
+        val heightPx = dpToPx(CAPSULE_COLLAPSED_HEIGHT_DP)
         return WindowManager.LayoutParams(
             widthPx,
             heightPx,
@@ -1093,8 +1096,8 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            // 框的垂直中心对准胶囊本体中心（胶囊窗口 68dp 内本体占 6..54dp，中心 30dp）。
-            y = statusBarHeightPx() + dpToPx(CAPSULE_COLLAPSED_HEIGHT_DP / 2) - heightPx / 2
+            // 与胶囊窗口取同一个 y：两窗同顶同高，框的本体中心自然和胶囊本体中心重合。
+            y = statusBarHeightPx()
             windowAnimations = 0
         }
     }
