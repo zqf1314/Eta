@@ -52,6 +52,8 @@ import io.github.mangi.eta.agent.overlay.AgentOverlayState
 import io.github.mangi.eta.agent.overlay.AgentOverlayStatus
 import io.github.mangi.eta.agent.overlay.AgentOverlayVisibilityPolicy
 import io.github.mangi.eta.agent.overlay.applyEvent
+import io.github.mangi.eta.agent.overlay.OverlayCapsuleSkin
+import io.github.mangi.eta.agent.overlay.OverlayCapsuleSkinRepository
 import io.github.mangi.eta.config.Prefs
 import io.github.mangi.eta.core.AndroidAgentLogger
 import io.github.mangi.eta.core.ModuleConfig
@@ -60,10 +62,12 @@ import io.github.mangi.eta.data.repository.RuntimeConfigRepository
 import kotlin.concurrent.thread
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import top.yukonga.miuix.kmp.squircle.LocalSquircleEnabled
@@ -102,6 +106,9 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
     private var resultCardView: ComposeView? = null
     private var glowParams: WindowManager.LayoutParams? = null
     private var capsuleParams: WindowManager.LayoutParams? = null
+    private var pendantView: android.widget.ImageView? = null
+    private var pendantParams: WindowManager.LayoutParams? = null
+    private var pendantSkinJob: Job? = null
     private var resultCardParams: WindowManager.LayoutParams? = null
     private var resultCardBack: Pair<OnBackInvokedDispatcher, OnBackInvokedCallback>? = null
 
@@ -185,9 +192,12 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
         resultCardView?.let { view -> runCatching { windowManager?.removeView(view) } }
         capsuleView?.let { view -> runCatching { windowManager?.removeView(view) } }
         glowView?.let { view -> runCatching { windowManager?.removeView(view) } }
+        pendantView?.let { view -> runCatching { windowManager?.removeView(view) } }
         resultCardView = null
         capsuleView = null
         glowView = null
+        pendantView = null
+        pendantParams = null
         resultCardParams = null
         capsuleParams = null
         glowParams = null
@@ -1010,7 +1020,98 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
         }
         capsuleView = capsule
         capsuleParams = capsuleLp
+        observePendantSkin()
     }
+
+    /**
+     * 挂件跟随皮肤：只有「二次元」档才挂角色，经典档完全不出现。
+     *
+     * 用设置流而不是建窗时读一次，是因为用户会在悬浮窗开着的时候切皮肤。
+     * 胶囊窗口已经销毁时不再补挂，避免出现没有胶囊的孤儿角色。
+     */
+    private fun observePendantSkin() {
+        if (pendantSkinJob != null) return
+        pendantSkinJob = serviceScope.launch {
+            OverlayCapsuleSkinRepository.flow().collect { skin ->
+                if (capsuleView == null) return@collect
+                if (skin == OverlayCapsuleSkin.ANIME) attachPendant() else detachPendant()
+            }
+        }
+    }
+
+    private fun detachPendant() {
+        pendantView?.let { view ->
+            runCatching { view.animate().cancel() }
+            runCatching { windowManager?.removeView(view) }
+        }
+        pendantView = null
+        pendantParams = null
+    }
+
+    /**
+     * 胶囊下方的二次元挂件。
+     *
+     * 走独立窗口 + FLAG_NOT_TOUCHABLE：挂件完全不吃触摸，胶囊窗口尺寸也不用变大。
+     * 如果把角色画进胶囊窗口，窗口内透明区会吞掉触摸（连 Agent 注入的点击一起吞），
+     * 屏幕顶部会多出一整块看不见的黑洞——所以宁可多开一个窗口。
+     */
+    private fun attachPendant() {
+        if (pendantView != null) return
+        val wm = windowManager ?: return
+        val bitmap = loadPendantBitmap() ?: return
+        val view = android.widget.ImageView(this).apply {
+            setImageBitmap(bitmap)
+            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+            setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
+        }
+        val lp = pendantLayoutParams()
+        runCatching { wm.addView(view, lp) }.onFailure { throwable ->
+            AndroidAgentLogger.warnThrottled("runtime_pendant_add_view_failed") {
+                "Agent runtime pendant addView failed: type=${throwable.safeLogType()}"
+            }
+            return
+        }
+        pendantView = view
+        pendantParams = lp
+    }
+
+    /** 按目标高度降采样解码，避免把 1024x1536 的原图整张塞进内存。 */
+    private fun loadPendantBitmap(): android.graphics.Bitmap? = runCatching {
+        val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        assets.open(PENDANT_ASSET).use { stream ->
+            android.graphics.BitmapFactory.decodeStream(stream, null, bounds)
+        }
+        val target = dpToPx(PENDANT_HEIGHT_DP)
+        var sample = 1
+        while (bounds.outHeight / (sample * 2) >= target) sample *= 2
+        assets.open(PENDANT_ASSET).use { stream ->
+            android.graphics.BitmapFactory.decodeStream(
+                stream,
+                null,
+                android.graphics.BitmapFactory.Options().apply { inSampleSize = sample },
+            )
+        }
+    }.getOrNull()
+
+    private fun pendantLayoutParams(): WindowManager.LayoutParams =
+        WindowManager.LayoutParams(
+            // 画布 2:3，按目标高度推宽度；WRAP_CONTENT 会随解码尺寸跳变并触发整窗重排。
+            dpToPx((PENDANT_HEIGHT_DP * PENDANT_WIDTH_RATIO).toInt()),
+            dpToPx(PENDANT_HEIGHT_DP),
+            overlayType(),
+            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED or
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            // 胶囊在胶囊窗口内的底边约 54dp（上下各 6dp 留白 + 48dp 本体），
+            // 再往上提 18dp，让角色看起来是扒在胶囊下沿而不是悬空。
+            y = statusBarHeightPx() + dpToPx(CAPSULE_COLLAPSED_HEIGHT_DP - PENDANT_LIFT_DP)
+            windowAnimations = 0
+        }
 
     /**
      * 让路时同步切换触摸穿透：标志位立刻生效保证手势不被截走，视觉过渡交给胶囊内的动画。
@@ -1038,6 +1139,8 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
 
     private fun toggleCapsule() {
         val expand = !capsuleExpanded.value
+        // 展开面板会占掉挂件的位置，先把角色淡掉；挂件不拦触摸，不需要等动画结束。
+        pendantView?.animate()?.alpha(if (expand) 0f else 1f)?.setDuration(160)?.start()
         // 先把窗口扩到展开档再开始动画；收起由胶囊在动画结束后回调 onCollapsedSettled 缩窗。
         if (expand) setCapsuleWindowHeight(CAPSULE_CONTROLS_HEIGHT_DP)
         capsuleExpanded.value = expand
@@ -1346,8 +1449,11 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
         capsuleView?.keepScreenOn = false
         capsuleView?.let { view -> runCatching { windowManager?.removeView(view) } }
         glowView?.let { view -> runCatching { windowManager?.removeView(view) } }
+        pendantView?.let { view -> runCatching { windowManager?.removeView(view) } }
         capsuleView = null
         glowView = null
+        pendantView = null
+        pendantParams = null
         capsuleParams = null
         glowParams = null
     }
@@ -1369,9 +1475,12 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
         resultCardView?.let { view -> runCatching { windowManager?.removeView(view) } }
         capsuleView?.let { view -> runCatching { windowManager?.removeView(view) } }
         glowView?.let { view -> runCatching { windowManager?.removeView(view) } }
+        pendantView?.let { view -> runCatching { windowManager?.removeView(view) } }
         resultCardView = null
         capsuleView = null
         glowView = null
+        pendantView = null
+        pendantParams = null
         resultCardParams = null
         capsuleParams = null
         glowParams = null
@@ -1417,6 +1526,14 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
         private const val RESULT_OPEN_REQUEST_CODE = 1108
         private const val CAPSULE_WINDOW_WIDTH_DP = 272
         private const val CAPSULE_COLLAPSED_HEIGHT_DP = 68
+
+        /** 挂在胶囊下方的二次元角色图（assets 内置资源）。 */
+        private const val PENDANT_ASSET = "overlay_pendant.png"
+        private const val PENDANT_HEIGHT_DP = 96
+        private const val PENDANT_WIDTH_RATIO = 0.667f
+
+        /** 挂件顶边上提量：让角色扒在胶囊下沿。 */
+        private const val PENDANT_LIFT_DP = 18
         private const val CAPSULE_CONTROLS_HEIGHT_DP = 124
         private const val CAPSULE_SUPPLEMENT_HEIGHT_DP = 260
         /** 注入点击只是一个点，目标控件常贴着胶囊边缘，判定范围向外多留一点。 */
