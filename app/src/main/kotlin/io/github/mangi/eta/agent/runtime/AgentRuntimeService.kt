@@ -1533,10 +1533,10 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
         private const val PENDANT_HEIGHT_DP = 108
         private const val PENDANT_WIDTH_RATIO = 0.667f
         /** 水平右移量：0 表示屏幕居中。 */
-        private const val PENDANT_SHIFT_DP = 12
+        private const val PENDANT_SHIFT_DP = 24
 
         /** 挂件顶边上提量：让图顶的固定支架压在胶囊下沿。 */
-        private const val PENDANT_LIFT_DP = 15
+        private const val PENDANT_LIFT_DP = 18
         private const val CAPSULE_CONTROLS_HEIGHT_DP = 124
         private const val CAPSULE_SUPPLEMENT_HEIGHT_DP = 260
         /** 注入点击只是一个点，目标控件常贴着胶囊边缘，判定范围向外多留一点。 */
