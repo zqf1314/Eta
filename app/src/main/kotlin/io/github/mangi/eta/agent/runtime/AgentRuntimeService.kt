@@ -1108,7 +1108,8 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
             // 胶囊在胶囊窗口内的底边约 54dp（上下各 6dp 留白 + 48dp 本体），
-            // 再往上提 18dp，让角色看起来是扒在胶囊下沿而不是悬空。
+            // 再往上提 15dp，让图顶的固定支架压在胶囊下沿而不是悬空。
+            x = dpToPx(PENDANT_SHIFT_DP)
             y = statusBarHeightPx() + dpToPx(CAPSULE_COLLAPSED_HEIGHT_DP - PENDANT_LIFT_DP)
             windowAnimations = 0
         }
@@ -1529,11 +1530,13 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
 
         /** 挂在胶囊下方的二次元角色图（assets 内置资源）。 */
         private const val PENDANT_ASSET = "overlay_pendant.png"
-        private const val PENDANT_HEIGHT_DP = 96
+        private const val PENDANT_HEIGHT_DP = 108
         private const val PENDANT_WIDTH_RATIO = 0.667f
+        /** 水平右移量：0 表示屏幕居中。 */
+        private const val PENDANT_SHIFT_DP = 12
 
-        /** 挂件顶边上提量：让角色扒在胶囊下沿。 */
-        private const val PENDANT_LIFT_DP = 18
+        /** 挂件顶边上提量：让图顶的固定支架压在胶囊下沿。 */
+        private const val PENDANT_LIFT_DP = 15
         private const val CAPSULE_CONTROLS_HEIGHT_DP = 124
         private const val CAPSULE_SUPPLEMENT_HEIGHT_DP = 260
         /** 注入点击只是一个点，目标控件常贴着胶囊边缘，判定范围向外多留一点。 */
