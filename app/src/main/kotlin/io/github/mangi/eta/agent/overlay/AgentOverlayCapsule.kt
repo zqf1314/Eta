@@ -84,8 +84,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mangi.eta.R
@@ -160,11 +158,6 @@ internal fun AgentOverlayCapsule(
         .collectAsState(initial = OverlayCapsuleSkin.ANIME)
         .value
     val capsuleStyle = capsuleSkin.style()
-    // 边框底图只在二次元档加载：经典档连 assets 都不打开，渲染路径保持原样。
-    val capsuleContext = LocalContext.current
-    val capsuleFrame = remember(capsuleSkin) {
-        if (capsuleSkin == OverlayCapsuleSkin.ANIME) loadCapsuleFrame(capsuleContext) else null
-    }
     // 叠了边框底图之后，霓虹渐变描边、紫色外发光和粉紫底纹会和蓝白花边打架，
     // 二次元档一律换成中性色；经典档继续用原来的画刷与颜色。
     val glowColor = if (capsuleSkin == OverlayCapsuleSkin.ANIME) {
@@ -223,7 +216,6 @@ internal fun AgentOverlayCapsule(
                     .clip(capsuleStyle.corners)
                     .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = capsuleStyle.backgroundAlpha))
                     .then(if (tintBrush != null) Modifier.background(tintBrush) else Modifier)
-                    .drawBehind { capsuleFrame?.let { drawCapsuleFrame(it) } }
                     .drawBehind {
                         drawPhaseFlash(accent, phaseFlash.value)
                         drawStickerSheen()
@@ -543,51 +535,6 @@ private fun DrawScope.drawStickerSheen() {
         center = center,
     )
 }
-
-/** 二次元档胶囊边框底图（assets 内置，按宽度等比铺满，上下超出交给圆角裁掉）。 */
-private const val CAPSULE_FRAME_ASSET = "overlay_capsule_frame.png"
-
-/** 边框底图等比放大系数：1f 为宽度刚好铺满胶囊，越大花边越满、被裁掉的部分也越多。 */
-private const val CAPSULE_FRAME_SCALE = 1.18f
-
-/**
- * 边框底图：保持图片原始比例，宽度铺满胶囊、垂直居中，超出胶囊高度的部分由外层圆角裁掉。
- *
- * 不切九宫格也不做非等比缩放——花边一旦横向拉宽就变形，宁可裁掉上下两端。
- */
-private fun DrawScope.drawCapsuleFrame(image: ImageBitmap) {
-    if (size.width <= 0f || size.height <= 0f || image.width <= 0) return
-    // 等比放大后四边都会溢出，超出部分交给外层圆角裁剪，图案本身比例不变。
-    val dstWidth = size.width * CAPSULE_FRAME_SCALE
-    val dstHeight = dstWidth * image.height / image.width
-    drawImage(
-        image = image,
-        srcOffset = IntOffset.Zero,
-        srcSize = IntSize(image.width, image.height),
-        dstOffset = IntOffset(
-            ((size.width - dstWidth) / 2f).toInt(),
-            ((size.height - dstHeight) / 2f).toInt(),
-        ),
-        dstSize = IntSize(dstWidth.toInt(), dstHeight.toInt()),
-    )
-}
-
-/** 解码边框底图；超大图按 2 的幂降采样，避免整张 1983px 原图进内存。 */
-private fun loadCapsuleFrame(context: Context): ImageBitmap? = runCatching {
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    context.assets.open(CAPSULE_FRAME_ASSET).use { stream ->
-        BitmapFactory.decodeStream(stream, null, bounds)
-    }
-    var sample = 1
-    while (bounds.outWidth / (sample * 2) >= 1024) sample *= 2
-    context.assets.open(CAPSULE_FRAME_ASSET).use { stream ->
-        BitmapFactory.decodeStream(
-            stream,
-            null,
-            BitmapFactory.Options().apply { inSampleSize = sample },
-        )?.asImageBitmap()
-    }
-}.getOrNull()
 
 /**
  * 粗白外描边：先画一层比胶囊大 3dp 的白色圆角块，胶囊本体随后压上去，露出来的就是白边。
