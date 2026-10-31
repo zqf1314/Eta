@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.map
  * 后续往中间插新皮肤也不会把老设置读串。
  */
 internal enum class OverlayCapsuleSkin(val wireName: String) {
-    /** 二次元贴纸：粗白外描边 + 角标星 + 右下收窄的不对称圆角。 */
+    /** 二次元贴纸：粗白外描边 + 角标星 + 四角同圆（叠边框底图时不对称圆角会露出尖角）。 */
     ANIME("anime"),
 
     /** 原版贴纸：只有渐变描边，四角同圆，没有白边和角标。 */
@@ -45,7 +45,7 @@ internal fun OverlayCapsuleSkin.style(): OverlayCapsuleStyle = when (this) {
         outlineWidth = 3.dp,
         // 白边比本体外扩，圆角也要跟着加，否则白边内侧会出现尖角。
         outlineCornerRadius = 25.dp,
-        corners = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp, bottomEnd = 10.dp, bottomStart = 22.dp),
+        corners = RoundedCornerShape(22.dp),
         borderWidth = 1.5.dp,
         showCornerStar = true,
         backgroundAlpha = 0.96f,

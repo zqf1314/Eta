@@ -533,6 +533,9 @@ private fun DrawScope.drawStickerSheen() {
 /** 二次元档胶囊边框底图（assets 内置，按宽度等比铺满，上下超出交给圆角裁掉）。 */
 private const val CAPSULE_FRAME_ASSET = "overlay_capsule_frame.png"
 
+/** 边框底图等比放大系数：1f 为宽度刚好铺满胶囊，越大花边越满、被裁掉的部分也越多。 */
+private const val CAPSULE_FRAME_SCALE = 1.15f
+
 /**
  * 边框底图：保持图片原始比例，宽度铺满胶囊、垂直居中，超出胶囊高度的部分由外层圆角裁掉。
  *
@@ -540,13 +543,18 @@ private const val CAPSULE_FRAME_ASSET = "overlay_capsule_frame.png"
  */
 private fun DrawScope.drawCapsuleFrame(image: ImageBitmap) {
     if (size.width <= 0f || size.height <= 0f || image.width <= 0) return
-    val dstHeight = size.width * image.height / image.width
+    // 等比放大后四边都会溢出，超出部分交给外层圆角裁剪，图案本身比例不变。
+    val dstWidth = size.width * CAPSULE_FRAME_SCALE
+    val dstHeight = dstWidth * image.height / image.width
     drawImage(
         image = image,
         srcOffset = IntOffset.Zero,
         srcSize = IntSize(image.width, image.height),
-        dstOffset = IntOffset(0, ((size.height - dstHeight) / 2f).toInt()),
-        dstSize = IntSize(size.width.toInt(), dstHeight.toInt()),
+        dstOffset = IntOffset(
+            ((size.width - dstWidth) / 2f).toInt(),
+            ((size.height - dstHeight) / 2f).toInt(),
+        ),
+        dstSize = IntSize(dstWidth.toInt(), dstHeight.toInt()),
     )
 }
 
