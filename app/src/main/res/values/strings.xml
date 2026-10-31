@@ -288,7 +288,7 @@
   <string name="overlay_avatar_settings">Choose avatar</string>
   <string name="overlay_avatar_settings_summary">Shown in the floating capsule and spins while Big Fat Fish is working</string>
   <string name="overlay_avatar_reset">Reset to app icon</string>
-  <string name="overlay_avatar_import_failed">Couldn't read that image, try another one</string>
+  <string name="overlay_avatar_import_failed">Couldn\'t read that image, try another one</string>
   <string name="tool_observe_screen">Observe screen</string>
   <string name="tool_tap">Tap</string>
   <string name="tool_tap_element">Tap element</string>
