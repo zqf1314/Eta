@@ -8,12 +8,15 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
@@ -60,6 +63,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -67,6 +71,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -147,6 +152,13 @@ internal fun AgentOverlayCapsule(
         label = "capsule_clearance",
     )
     val accent by animateColorAsState(overlayPhaseAccent(state.phase), tween(240), label = "capsule_accent")
+
+    // 四态切换原本只有文字和外环换色，安静得像没反应；这里给整颗胶囊打一次状态色脉冲。
+    val phaseFlash = remember { Animatable(0f) }
+    LaunchedEffect(state.phase) {
+        phaseFlash.snapTo(1f)
+        phaseFlash.animateTo(0f, tween(durationMillis = 260, easing = LinearEasing))
+    }
     val statusText = state.status.localizedText()
     val expandDescription = stringResource(R.string.overlay_capsule_toggle, statusText)
     // 展开进度只驱动绘制层的透明度与位移，不参与测量；控制区用 AnimatedVisibility 只在两端各测一次。
@@ -188,7 +200,10 @@ internal fun AgentOverlayCapsule(
                     .clip(RoundedCornerShape(CapsuleCorner))
                     .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f))
                     .background(StickerTintBrush)
-                    .drawBehind { drawStickerSheen() }
+                    .drawBehind {
+                        drawPhaseFlash(accent, phaseFlash.value)
+                        drawStickerSheen()
+                    }
                     .border(1.5.dp, StickerBorderBrush, RoundedCornerShape(CapsuleCorner)),
             ) {
                 Row(
@@ -296,36 +311,71 @@ internal fun AgentOverlayCapsule(
  *
  * 只转绘制层，不触发重新布局；暂停与结束时停住，靠外环颜色区分四态。
  * 自转速度刻意放慢：转太快看不清脸，反而像加载图标。
+ *
+ * 光晕与白描边都用 `drawBehind` 画在布局尺寸之外，不占 Row 的宽度，
+ * 文字区不会因为多了装饰而变窄。
  */
 @Composable
 private fun CapsuleAvatar(phase: AgentOverlayPhase, accent: Color) {
     val context = LocalContext.current
     val fileName by OverlayAvatarRepository.fileFlow().collectAsState(initial = null)
     val image = remember(fileName) { loadAvatarImage(context, fileName) }
-    val spin = if (phase == AgentOverlayPhase.RUNNING) {
-        val transition = rememberInfiniteTransition(label = "capsule_avatar")
-        val angle by transition.animateFloat(
-            initialValue = 0f,
-            targetValue = 360f,
-            animationSpec = infiniteRepeatable(tween(3600, easing = LinearEasing)),
-            label = "capsule_avatar_spin",
-        )
-        angle
-    } else {
-        0f
-    }
+    val running = phase == AgentOverlayPhase.RUNNING
+    // 两个无限动画常驻，但只在 RUNNING 时读值：非运行态不订阅，也就不会每帧重组。
+    val transition = rememberInfiniteTransition(label = "capsule_avatar")
+    val spin = transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(3600, easing = LinearEasing)),
+        label = "capsule_avatar_spin",
+    )
+    val glow = transition.animateFloat(
+        initialValue = 0.10f,
+        targetValue = 0.34f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "capsule_avatar_glow",
+    )
     Box(
         modifier = Modifier
             .size(AvatarSize)
-            .graphicsLayer { rotationZ = spin }
+            .drawBehind {
+                val radius = size.minDimension / 2f
+                // 呼吸光晕：运行时有轻微的“亮着”感，比一根细环明显得多。
+                if (running) {
+                    val glowRadius = radius + AvatarGlowRadius.toPx()
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(accent.copy(alpha = glow.value), Color.Transparent),
+                            center = center,
+                            radius = glowRadius,
+                        ),
+                        radius = glowRadius,
+                        center = center,
+                    )
+                }
+                // 白描边：贴在霓虹环外沿，做成贴纸那种“双圈”边。
+                drawCircle(
+                    color = Color.White.copy(alpha = 0.38f),
+                    radius = radius + AvatarRingGap.toPx(),
+                    center = center,
+                    style = Stroke(width = AvatarRingWidth.toPx()),
+                )
+            }
+            .graphicsLayer { rotationZ = if (running) spin.value else 0f }
             .clip(CircleShape)
-            .border(1.5.dp, accent.copy(alpha = 0.9f), CircleShape),
+            .border(AvatarRingWidth, accent.copy(alpha = 0.9f), CircleShape),
     ) {
         Image(
             bitmap = image,
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(AvatarInset)
+                .clip(CircleShape),
         )
     }
 }
@@ -393,7 +443,17 @@ private val CapsuleCorner = 22.dp
 private val CapsuleWidth = 248.dp
 
 /** 头像直径。比原来的 14dp 状态点大一圈，圆形头像要看得清脸。 */
-private val AvatarSize = 22.dp
+private val AvatarSize = 26.dp
+
+/** 头像与霓虹环之间的缝，露出胶囊底色；贴边画在 26dp 上会显挤。 */
+private val AvatarInset = 3.dp
+
+/** 呼吸光晕在头像外的延伸量。 */
+private val AvatarGlowRadius = 6.dp
+
+/** 霓虹环粗细，以及外层白描边与霓虹环的间距。 */
+private val AvatarRingWidth = 1.dp
+private val AvatarRingGap = 1.5.dp
 
 /** 应用图标转位图的边长，按最大绘制尺寸的 4 倍留余量。 */
 private const val FALLBACK_AVATAR_PX = 96
@@ -413,6 +473,15 @@ private val StickerTintBrush = Brush.linearGradient(
         NeonCyan.copy(alpha = 0.10f),
     ),
 )
+
+/** 状态切换时整颗胶囊打一次状态色脉冲，260ms 内衰减到零。 */
+private fun DrawScope.drawPhaseFlash(accent: Color, amount: Float) {
+    if (amount <= 0.01f) return
+    drawRoundRect(
+        color = accent.copy(alpha = 0.13f * amount),
+        cornerRadius = CornerRadius(CapsuleCorner.toPx()),
+    )
+}
 
 /** 左上角一团白色柔光，让扁平底色有一点塑料贴纸的高光。 */
 private fun DrawScope.drawStickerSheen() {
