@@ -33,6 +33,7 @@ internal object SettingsDataStore {
     private val WEB_TOOLS_SETTINGS = stringPreferencesKey("web_tools_settings_v1")
     private val SUBAGENT_SETTINGS = stringPreferencesKey("subagent_settings_v1")
     private val CHAT_BACKGROUND_SETTINGS = stringPreferencesKey("chat_background_settings_v1")
+    private val OVERLAY_AVATAR_FILE = stringPreferencesKey("overlay_avatar_file_v1")
     private val speechJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
     fun speechSettingsFlow(): Flow<SpeechSettings> {
@@ -110,6 +111,28 @@ internal object SettingsDataStore {
         dataStore.edit {
             it[CHAT_BACKGROUND_SETTINGS] = speechJson.encodeToString(settings.normalized())
         }
+    }
+
+    /**
+     * Agent 悬浮胶囊的头像文件名。
+     *
+     * 只存私有目录里的文件名，不存相册 URI：相册原图被删除或授权失效后，
+     * 存下来的 URI 会变成一张打不开的空头像。
+     */
+    fun overlayAvatarFileFlow(): Flow<String?> {
+        ensureInitialized()
+        return dataStore.data
+            .catch { cause ->
+                if (cause is IOException) emit(emptyPreferences()) else throw cause
+            }
+            .map { prefs -> prefs[OVERLAY_AVATAR_FILE]?.takeIf { it.isNotBlank() } }
+    }
+
+    suspend fun overlayAvatarFile(): String? = overlayAvatarFileFlow().first()
+
+    suspend fun setOverlayAvatarFile(fileName: String?) {
+        ensureInitialized()
+        dataStore.edit { prefs -> prefs.putOrRemove(OVERLAY_AVATAR_FILE, fileName) }
     }
 
     private const val STORE_NAME = "eta_settings"

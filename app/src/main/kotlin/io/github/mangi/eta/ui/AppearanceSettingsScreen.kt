@@ -75,6 +75,8 @@ import io.github.mangi.eta.data.repository.AppearanceSettingsRepository
 import io.github.mangi.eta.data.repository.ChatBackgroundImportFailure
 import io.github.mangi.eta.data.repository.ChatBackgroundImportResult
 import io.github.mangi.eta.data.repository.ChatBackgroundRepository
+import io.github.mangi.eta.data.repository.OverlayAvatarImportResult
+import io.github.mangi.eta.data.repository.OverlayAvatarRepository
 import io.github.mangi.eta.ui.app.LocalAppearanceSettings
 import io.github.mangi.eta.ui.components.EtaArrowPreference
 import io.github.mangi.eta.ui.components.EtaCard
@@ -203,6 +205,24 @@ internal fun AppearanceSettingsScreen(onBack: () -> Unit) {
             ChatBackgroundMode.NONE -> Unit
         }
     }
+
+    // Agent 悬浮胶囊头像：和聊天背景一样，相册图先复制进私有目录，这里只存文件名。
+    val avatarFile by OverlayAvatarRepository.fileFlow().collectAsState(initial = null)
+
+    fun importAvatar(uri: Uri?) {
+        if (uri == null) return
+        coroutineScope.launch {
+            when (OverlayAvatarRepository.importFromUri(context, uri)) {
+                OverlayAvatarImportResult.Success -> Unit
+                is OverlayAvatarImportResult.Failure ->
+                    Toast.makeText(context, R.string.overlay_avatar_import_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    val avatarPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia(),
+    ) { uri -> importAvatar(uri) }
 
     val backgroundModes = ChatBackgroundMode.entries
     val backgroundModeLabels = listOf(
@@ -673,6 +693,31 @@ internal fun AppearanceSettingsScreen(onBack: () -> Unit) {
                         )
                     },
                     onClick = null,
+                )
+            }
+        }
+
+        item(key = "appearance_agent_overlay_title") {
+            EtaPreferenceGroupTitle(text = stringResource(R.string.overlay_avatar_group))
+        }
+        item(key = "appearance_agent_overlay_card") {
+            EtaPreferenceGroup(
+                modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 16.dp),
+            ) {
+                EtaArrowPreference(
+                    title = stringResource(R.string.overlay_avatar_settings),
+                    summary = stringResource(R.string.overlay_avatar_settings_summary),
+                    onClick = {
+                        avatarPicker.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                        )
+                    },
+                )
+                EtaPreferenceDivider(hasLeading = false)
+                EtaArrowPreference(
+                    title = stringResource(R.string.overlay_avatar_reset),
+                    enabled = avatarFile != null,
+                    onClick = { coroutineScope.launch { OverlayAvatarRepository.clear(context) } },
                 )
             }
         }

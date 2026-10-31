@@ -322,6 +322,11 @@
   <string name="overlay_finishing">收尾中，結果出現後再補充</string>
   <string name="overlay_continuation_unavailable">目前入口不支援補充</string>
   <string name="overlay_stopped">已停止</string>
+  <string name="overlay_avatar_group">膠囊頭像</string>
+  <string name="overlay_avatar_settings">選擇頭像</string>
+  <string name="overlay_avatar_settings_summary">Agent 執行時在懸浮膠囊裡旋轉顯示</string>
+  <string name="overlay_avatar_reset">恢復預設圖示</string>
+  <string name="overlay_avatar_import_failed">這張圖讀不出來，換一張試試</string>
   <string name="action_regenerate">重新產生</string>
   <string name="conversation_regenerate_current_turn">目前這輪對話將由新產生的回覆取代。</string>
   <string name="time_now">現在</string>

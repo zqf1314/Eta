@@ -1,11 +1,15 @@
 package io.github.mangi.eta.agent.overlay
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.Spring
@@ -21,6 +25,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -30,10 +35,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Pause
@@ -41,6 +49,7 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,18 +61,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -71,11 +78,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mangi.eta.R
+import io.github.mangi.eta.data.repository.OverlayAvatarRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Icon
@@ -151,15 +157,6 @@ internal fun AgentOverlayCapsule(
         finishedListener = { value -> if (value == 0f) onCollapsedSettled() },
     )
 
-    // 贴纸外形：圆角 + 右下角 45° 斜切。用自定义 Shape 而不是遮罩，描边和阴影才会跟着斜切走。
-    val density = LocalDensity.current
-    val stickerShape = remember(density) {
-        StickerCapsuleShape(
-            cornerPx = with(density) { CapsuleCorner.toPx() },
-            cutPx = with(density) { StickerCut.toPx() },
-        )
-    }
-
     AnimatedVisibility(
         visible = visible,
         enter = slideInVertically(spring(Spring.DampingRatioLowBouncy, Spring.StiffnessMediumLow)) { -it } +
@@ -177,23 +174,22 @@ internal fun AgentOverlayCapsule(
                         val shrink = 1f - 0.08f * clearance
                         scaleX = press * shrink
                         scaleY = press * shrink
-                        rotationZ = StickerTilt
                         translationY = -12.dp.toPx() * clearance
                         alpha = 1f - clearance
                         transformOrigin = TransformOrigin(0.5f, 0f)
                     }
-                    // 贴纸：柔光底 + 霓虹描边 + 右下角斜切。阴影仍用 accent，四态语义不变。
+                    // 贴纸质感只留在配色和描边上：全圆角，不做斜切，也不歪。
                     .shadow(
                         elevation = 10.dp,
-                        shape = stickerShape,
+                        shape = RoundedCornerShape(CapsuleCorner),
                         ambientColor = NeonPurple,
                         spotColor = accent,
                     )
-                    .clip(stickerShape)
+                    .clip(RoundedCornerShape(CapsuleCorner))
                     .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f))
                     .background(StickerTintBrush)
                     .drawBehind { drawStickerSheen() }
-                    .border(width = 1.5.dp, brush = StickerBorderBrush, shape = stickerShape),
+                    .border(1.5.dp, StickerBorderBrush, RoundedCornerShape(CapsuleCorner)),
             ) {
                 Row(
                     modifier = Modifier
@@ -207,7 +203,7 @@ internal fun AgentOverlayCapsule(
                         .padding(start = 12.dp, end = 16.dp, top = 9.dp, bottom = 9.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    PhaseIndicator(phase = state.phase, accent = accent)
+                    CapsuleAvatar(phase = state.phase, accent = accent)
                     Spacer(Modifier.width(9.dp))
                     Column(modifier = Modifier.weight(1f)) {
                     AnimatedContent(
@@ -295,56 +291,65 @@ internal fun AgentOverlayCapsule(
     }
 }
 
-/** 运行中是旋转的弧形光点，暂停为静止空心环，结束为实心点；只在运行时持有帧动画。 */
+/**
+ * 胶囊头像：圆形裁切，RUNNING 时匀速自转，一圈 3.6 秒。
+ *
+ * 只转绘制层，不触发重新布局；暂停与结束时停住，靠外环颜色区分四态。
+ * 自转速度刻意放慢：转太快看不清脸，反而像加载图标。
+ */
 @Composable
-private fun PhaseIndicator(phase: AgentOverlayPhase, accent: Color) {
-    val size = 14.dp
-    if (phase != AgentOverlayPhase.RUNNING) {
-        Box(
-            modifier = Modifier
-                .size(size)
-                .drawBehind {
-                    val radius = this.size.minDimension / 2f
-                    if (phase == AgentOverlayPhase.PAUSED) {
-                        drawCircle(accent, radius * 0.78f, style = androidx.compose.ui.graphics.drawscope.Stroke(radius * 0.32f))
-                    } else {
-                        drawCircle(accent, radius * 0.6f)
-                    }
-                },
+private fun CapsuleAvatar(phase: AgentOverlayPhase, accent: Color) {
+    val context = LocalContext.current
+    val fileName by OverlayAvatarRepository.fileFlow().collectAsState(initial = null)
+    val image = remember(fileName) { loadAvatarImage(context, fileName) }
+    val spin = if (phase == AgentOverlayPhase.RUNNING) {
+        val transition = rememberInfiniteTransition(label = "capsule_avatar")
+        val angle by transition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(tween(3600, easing = LinearEasing)),
+            label = "capsule_avatar_spin",
         )
-        return
+        angle
+    } else {
+        0f
     }
-    val transition = rememberInfiniteTransition(label = "capsule_indicator")
-    val rotation by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(1100, easing = androidx.compose.animation.core.LinearEasing)),
-        label = "capsule_indicator_rotation",
-    )
-    val breathe by transition.animateFloat(
-        initialValue = 0.55f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
-        label = "capsule_indicator_breathe",
-    )
     Box(
         modifier = Modifier
-            .size(size)
-            .graphicsLayer { rotationZ = rotation }
-            .drawBehind {
-                val radius = this.size.minDimension / 2f
-                val center = Offset(radius, radius)
-                drawCircle(accent.copy(alpha = 0.18f), radius)
-                drawArc(
-                    brush = Brush.sweepGradient(listOf(Color.Transparent, accent), center),
-                    startAngle = 0f,
-                    sweepAngle = 300f,
-                    useCenter = false,
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(radius * 0.34f, cap = androidx.compose.ui.graphics.StrokeCap.Round),
-                )
-                drawCircle(accent.copy(alpha = breathe), radius * 0.26f, center)
-            },
-    )
+            .size(AvatarSize)
+            .graphicsLayer { rotationZ = spin }
+            .clip(CircleShape)
+            .border(1.5.dp, accent.copy(alpha = 0.9f), CircleShape),
+    ) {
+        Image(
+            bitmap = image,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+}
+
+/** 读私有目录里的头像；没设置或文件读不出来时回落到应用图标，保证胶囊永远有东西可画。 */
+private fun loadAvatarImage(context: Context, fileName: String?): ImageBitmap {
+    val file = OverlayAvatarRepository.avatarFile(context, fileName)
+    val bitmap = file?.let { runCatching { BitmapFactory.decodeFile(it.absolutePath) }.getOrNull() }
+    return bitmap?.asImageBitmap() ?: fallbackAvatarImage(context)
+}
+
+/**
+ * 应用图标转位图。
+ * 不用 `painterResource(R.mipmap.ic_launcher)`：自适应图标是 XML，那条路画不出来。
+ */
+private fun fallbackAvatarImage(context: Context): ImageBitmap {
+    val drawable = context.applicationInfo.loadIcon(context.packageManager)
+    val edge = FALLBACK_AVATAR_PX
+    val bitmap = Bitmap.createBitmap(edge, edge, Bitmap.Config.ARGB_8888)
+    Canvas(bitmap).also { canvas ->
+        drawable.setBounds(0, 0, edge, edge)
+        drawable.draw(canvas)
+    }
+    return bitmap.asImageBitmap()
 }
 
 /**
@@ -387,11 +392,11 @@ private fun CapsuleAction(icon: ImageVector, label: String, tint: Color, onClick
 private val CapsuleCorner = 22.dp
 private val CapsuleWidth = 248.dp
 
-/** 斜切长度：右下角沿 45° 切掉这么宽的角，像贴纸撕下来的一角。 */
-private val StickerCut = 18.dp
+/** 头像直径。比原来的 14dp 状态点大一圈，圆形头像要看得清脸。 */
+private val AvatarSize = 22.dp
 
-/** 贴纸微微倾斜的角度。若觉得文字发虚，把它改成 0f 就回正了。 */
-private const val StickerTilt = -0.8f
+/** 应用图标转位图的边长，按最大绘制尺寸的 4 倍留余量。 */
+private const val FALLBACK_AVATAR_PX = 96
 
 private val NeonCyan = Color(0xFF3EE6F0)
 private val NeonPurple = Color(0xFF9B6BFF)
@@ -403,9 +408,9 @@ private val StickerBorderBrush = Brush.linearGradient(listOf(NeonCyan, NeonPurpl
 /** 贴纸底色染的霓虹渐变，只走低透明度，保证状态文字对比度不变。 */
 private val StickerTintBrush = Brush.linearGradient(
     listOf(
-        NeonPink.copy(alpha = 0.13f),
-        NeonPurple.copy(alpha = 0.09f),
-        NeonCyan.copy(alpha = 0.13f),
+        NeonPink.copy(alpha = 0.10f),
+        NeonPurple.copy(alpha = 0.07f),
+        NeonCyan.copy(alpha = 0.10f),
     ),
 )
 
@@ -422,31 +427,4 @@ private fun DrawScope.drawStickerSheen() {
         radius = radius,
         center = center,
     )
-}
-
-/**
- * 贴纸外形：四角圆角，唯独右下角走直线斜切。
- * 用 Shape 而不是裁一块遮罩，是为了让 shadow/border 的轮廓天然跟着斜切走。
- */
-private class StickerCapsuleShape(
-    private val cornerPx: Float,
-    private val cutPx: Float,
-) : Shape {
-    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
-        val corner = cornerPx.coerceAtMost(size.minDimension / 2f)
-        val cut = cutPx.coerceIn(0f, size.minDimension * 0.8f)
-        val path = Path().apply {
-            moveTo(corner, 0f)
-            lineTo(size.width - corner, 0f)
-            arcTo(Rect(size.width - corner * 2f, 0f, size.width, corner * 2f), -90f, 90f, false)
-            lineTo(size.width, size.height - cut)
-            lineTo(size.width - cut, size.height)
-            lineTo(corner, size.height)
-            arcTo(Rect(0f, size.height - corner * 2f, corner * 2f, size.height), 90f, 90f, false)
-            lineTo(0f, corner)
-            arcTo(Rect(0f, 0f, corner * 2f, corner * 2f), 180f, 90f, false)
-            close()
-        }
-        return Outline.Generic(path)
-    }
 }

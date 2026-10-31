@@ -334,6 +334,11 @@
   <string name="overlay_finishing">收尾中，结果出来后再补充</string>
   <string name="overlay_continuation_unavailable">当前入口不支持补充</string>
   <string name="overlay_stopped">已停止</string>
+  <string name="overlay_avatar_group">胶囊头像</string>
+  <string name="overlay_avatar_settings">选择头像</string>
+  <string name="overlay_avatar_settings_summary">Agent 执行时在悬浮胶囊里旋转显示</string>
+  <string name="overlay_avatar_reset">恢复默认图标</string>
+  <string name="overlay_avatar_import_failed">这张图读不出来，换一张试试</string>
   <string name="action_regenerate">重新生成</string>
   <string name="conversation_regenerate_current_turn">当前轮次将由新生成的回复替换。</string>
   <string name="time_now">现在</string>
