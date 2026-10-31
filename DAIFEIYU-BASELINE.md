@@ -5,7 +5,7 @@
 
 - 上游基线：`v3.3.5` / `6bedba9`
 - 本基线分支：`feat/rename-to-daifeiyu`
-- 基线 tag：`daifeiyu-baseline-v2`（上一版为 `daifeiyu-baseline-v1` / `653258b`）
+- 基线 tag：`daifeiyu-baseline-v3`（上一版 `daifeiyu-baseline-v2` / `5a0f6f3`，首版 `daifeiyu-baseline-v1` / `653258b`）
 - 构建产物：`Eta-v3.3.5+<sha7>.apk`（arm64-v8a，release，已签名）
 - 签名：`eta-release.jks`（PKCS12 / RSA 4096 / alias `daifeiyu`），只存在本地，密钥经 GitHub Secrets 注入
 
@@ -96,6 +96,10 @@ AI 回复文字颜色的行为边界：
 | `.github/workflows/build-daifeiyu.yml` | push 到 `feat/rename-to-daifeiyu` 触发；注入签名 → 构建 → `apksigner verify` → 建 tag `daifeiyu-<sha7>` → 发布 prerelease |
 | `.github/workflows/publish-now.yml` | 手动补发 |
 
+上游自带的 `.github/workflows/android-release.yml`（显示名 `Eta Build`）在 `main` 上跑
+`--continue :app:lintDebug :app:testDebugUnitTest`（1921 条单测），从 `a884546` 起 `verify` job 为绿；
+`draft-release` 仅在 tag 推送时生效，推分支时 skip 属正常。
+
 ## 五、踩过的坑（别再踩回去）
 
 - 英文资源里的裸单引号必须写成 `\'`，否则 aapt 直接报 `Invalid unicode escape sequence in string`（`Couldn't` 踩过一次，整个 build 挂掉）
@@ -110,5 +114,8 @@ AI 回复文字颜色的行为边界：
 - 视频壁纸的首帧表现、切后台恢复等细节按「可用」标准收口
 - 胶囊展开态的控制按钮仍是方块圆角，未做玻璃化 / 圆形化
 - 可选美化未做：边框流光（B1）、文字前渐变竖线（C2）、彩色外发光（C3）
-- 上游自带的 `Eta Build` 在 `main` 上有 2 条测试失败（`AgentPromptBuilderTest` / `LocaleResourcesTest`），
-  不影响我们的 `build-daifeiyu.yml` 出包
+- ~~上游 2 条测试失败~~：已在 `a884546` 修好（**只改测试期望值，零产品代码改动**，2 文件 +6/−6）：
+  `AgentPromptBuilderTest` 的终端提示词锚点改为「大肥鱼内置文件与终端工具」；`LocaleResourcesTest` 的
+  `execution_title` / `execution_summary` 期望值改为 `Big Fat Fish` / 大肥鱼 / 大肥魚。归根结底是品牌替换后测试期望值没跟上。
+  保留 `Eta` 的地方不要去改：`User-Agent` 头、`EtaRecognitionService` 类名、
+  `ConversationMarkdownExporter` 导出文件名前缀（产品代码仍为 `Eta-$sanitized-$timestamp.md`）。
