@@ -76,6 +76,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -111,10 +112,13 @@ internal fun AgentOverlayCapsule(
     onStop: () -> Unit,
     onSupplementModeChange: (Boolean) -> Unit,
     onSupplement: (String) -> Unit,
+    onPanelBottomChanged: (Int) -> Unit,
 ) {
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
     var supplementMode by remember { mutableStateOf(false) }
+    // 面板底边只在排版变化时上报；用数组持有，写值不会触发重组。
+    val lastPanelBottom = remember { intArrayOf(0) }
     var supplementText by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val keyboard = LocalSoftwareKeyboardController.current
@@ -235,7 +239,15 @@ internal fun AgentOverlayCapsule(
                             drawCornerStar(state.phase, if (isAnime) ComicInk else Color.White)
                         }
                     }
-                    .border(capsuleStyle.borderWidth, borderBrush, capsuleStyle.corners),
+                    .border(capsuleStyle.borderWidth, borderBrush, capsuleStyle.corners)
+                    // 面板真实底边（px，以窗口顶边为原点）：窗口高度比面板高，挂件只能照面板对齐。
+                    .onGloballyPositioned { coordinates ->
+                        val bottom = (coordinates.positionInWindow().y + coordinates.size.height).toInt()
+                        if (bottom != lastPanelBottom[0]) {
+                            lastPanelBottom[0] = bottom
+                            onPanelBottomChanged(bottom)
+                        }
+                    },
             ) {
                 Row(
                     modifier = Modifier
@@ -632,3 +644,4 @@ private fun DrawScope.drawCornerStar(phase: AgentOverlayPhase, ink: Color = Colo
     val alpha = if (phase == AgentOverlayPhase.RUNNING) 0.95f else 0.42f
     drawPath(path, ink.copy(alpha = alpha))
 }
+

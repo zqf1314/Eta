@@ -109,8 +109,8 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
     private var pendantView: android.widget.ImageView? = null
     private var pendantParams: WindowManager.LayoutParams? = null
     private var pendantSkinJob: Job? = null
-    /** 胶囊窗口当前高度档位；窗口被重建后挂件靠它恢复位移。 */
-    private var capsuleWindowHeightDp = CAPSULE_COLLAPSED_HEIGHT_DP
+    /** 胶囊面板的实测底边（px，以胶囊窗口顶边为原点）；0 表示还没量到。 */
+    private var capsulePanelBottomPx = 0
     private var resultCardParams: WindowManager.LayoutParams? = null
     private var resultCardBack: Pair<OnBackInvokedDispatcher, OnBackInvokedCallback>? = null
 
@@ -200,7 +200,7 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
         glowView = null
         pendantView = null
         pendantParams = null
-        capsuleWindowHeightDp = CAPSULE_COLLAPSED_HEIGHT_DP
+        capsulePanelBottomPx = 0
         resultCardParams = null
         capsuleParams = null
         glowParams = null
@@ -1011,6 +1011,7 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
                 onStop = { requestStop(controlRunId) },
                 onSupplementModeChange = ::setCapsuleInputMode,
                 onSupplement = { requestSupplement(controlRunId, it) },
+                onPanelBottomChanged = ::onCapsulePanelBottom,
             )
         }
         val capsuleLp = capsuleLayoutParams()
@@ -1151,12 +1152,8 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
 
     private fun toggleCapsule() {
         val expand = !capsuleExpanded.value
-        // 展开面板会占掉挂件的位置：窗口先扩档，挂件同步被顶到面板底边之下。
-        // 收起时立刻往回滑；等面板完全收完再复位会多出一段看得见的空档。
-        if (!expand) {
-            capsuleWindowHeightDp = CAPSULE_COLLAPSED_HEIGHT_DP
-            applyPendantState(animate = true)
-        }
+        // 展开面板会占掉挂件的位置；挂件位置由胶囊上报的实测面板底边驱动（见 onCapsulePanelBottom），
+        // 这里只管窗口档位，不再直接算位移。
         // 先把窗口扩到展开档再开始动画；收起由胶囊在动画结束后回调 onCollapsedSettled 缩窗。
         if (expand) setCapsuleWindowHeight(CAPSULE_CONTROLS_HEIGHT_DP)
         capsuleExpanded.value = expand
@@ -1170,9 +1167,6 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
         val wm = windowManager ?: return
         val capsule = capsuleView ?: return
         val lp = capsuleParams ?: return
-        // 挂件位移跟着窗口档位走：面板压下来多高，角色就被顶下去多少。
-        capsuleWindowHeightDp = heightDp
-        applyPendantState(animate = true)
         val height = dpToPx(heightDp)
         if (lp.height == height) return
         lp.height = height
@@ -1184,12 +1178,23 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
     }
 
     /**
-     * 展开面板把挂件顶下去的位移：面板比收起档高多少就顶下去多少。
+     * 面板底边实测值：面板铺到哪，挂件就推到哪，并保持 PENDANT_GAP_DP 的咬合量。
      *
-     * 基准必须是收起档（而不是挂件顶边）：收起状态下必须为 0，否则衔接处的 18dp 咬合会变成一道缝。
+     * 不能用窗口高度算：展开档 124dp、输入档 260dp 都只是给面板留的窗口空间，
+     * 面板本身按内容高走，窗口下面那截是透明的，拿窗口高度算会把角色推得太低。
      */
-    private fun pendantShiftFor(panelHeightDp: Int): Float =
-        dpToPx((panelHeightDp - CAPSULE_COLLAPSED_HEIGHT_DP).coerceAtLeast(0)).toFloat()
+    private fun pendantShiftFor(panelBottomPx: Int): Float {
+        if (panelBottomPx <= 0) return 0f
+        val topInWindow = dpToPx(CAPSULE_COLLAPSED_HEIGHT_DP - PENDANT_LIFT_DP)
+        return (panelBottomPx - dpToPx(PENDANT_GAP_DP) - topInWindow).coerceAtLeast(0).toFloat()
+    }
+
+    /** 面板底边变了（展开、收起、进入输入模式）就重新对齐挂件。 */
+    private fun onCapsulePanelBottom(bottomPx: Int) {
+        if (bottomPx == capsulePanelBottomPx) return
+        capsulePanelBottomPx = bottomPx
+        applyPendantState(animate = true)
+    }
 
     /**
      * 把挂件的位移与可见性一次性调到当前状态。
@@ -1200,7 +1205,7 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
      */
     private fun applyPendantState(animate: Boolean) {
         val view = pendantView ?: return
-        val shift = pendantShiftFor(capsuleWindowHeightDp)
+        val shift = pendantShiftFor(capsulePanelBottomPx)
         val alpha = if (capsuleYielded.value) 0f else 1f
         if (!animate) {
             view.translationY = shift
@@ -1512,8 +1517,8 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
         pendantParams = null
         capsuleParams = null
         glowParams = null
-        // 胶囊窗口按收起档重建，档位也要跟着复位，否则重挂时挂件会停在旧位移。
-        capsuleWindowHeightDp = CAPSULE_COLLAPSED_HEIGHT_DP
+        // 面板实测值也跟着作废，重挂时等第一帧重新上报再定位。
+        capsulePanelBottomPx = 0
     }
 
     private fun dismissAndStop() {
@@ -1539,7 +1544,7 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
         glowView = null
         pendantView = null
         pendantParams = null
-        capsuleWindowHeightDp = CAPSULE_COLLAPSED_HEIGHT_DP
+        capsulePanelBottomPx = 0
         resultCardParams = null
         capsuleParams = null
         glowParams = null
@@ -1597,10 +1602,12 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
         private const val PENDANT_LIFT_DP = 18
 
         /**
-         * 挂件窗口为下移预留的高度：最大输入面板 260dp 减收起档 68dp = 192dp。
+         * 挂件窗口为下移预留的高度：足够盖住最高输入面板（260dp 窗口）。
          * 窗口本身透明且 FLAG_NOT_TOUCHABLE，多出来的这块只给动画用，不产生死区。
          */
-        private const val PENDANT_SLIDE_MAX_DP = 192
+        private const val PENDANT_SLIDE_MAX_DP = 200
+        /** 挂件顶边相对面板底边的咬合量：支架压住胶囊下沿这么多。 */
+        private const val PENDANT_GAP_DP = 18
         /** 展开：面板下来的同时把角色顶下去。 */
         private const val PENDANT_SLIDE_DOWN_MS = 220L
         /** 收起：面板收拢的同时角色滑回原位。 */
@@ -1615,5 +1622,3 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
 
     private class RuntimeConfigUnavailableException : IllegalStateException()
 }
-
-
