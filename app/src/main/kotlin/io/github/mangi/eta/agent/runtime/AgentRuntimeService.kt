@@ -1192,11 +1192,16 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
         return (panelBottomPx - topInWindow).coerceAtLeast(0).toFloat()
     }
 
-    /** 面板底边变了（展开、收起、进入输入模式）就重新对齐挂件。 */
+    /**
+     * 面板底边变了（展开、收起、进入输入模式）就重新对齐挂件。
+     *
+     * 这里直接落位、不叠动画：胶囊展开/收起本身就是逐帧变化的动画，每一帧都会上报新底边，
+     * 挂件再套一层 220ms 插值相当于把同一段动画又滤一次，看上去就慢半拍。
+     */
     private fun onCapsulePanelBottom(bottomPx: Int) {
         if (bottomPx == capsulePanelBottomPx) return
         capsulePanelBottomPx = bottomPx
-        applyPendantState(animate = true)
+        applyPendantState(animate = false)
     }
 
     /**
