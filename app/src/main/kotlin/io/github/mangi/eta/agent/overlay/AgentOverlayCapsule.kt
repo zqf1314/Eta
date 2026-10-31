@@ -165,6 +165,15 @@ internal fun AgentOverlayCapsule(
     val capsuleFrame = remember(capsuleSkin) {
         if (capsuleSkin == OverlayCapsuleSkin.ANIME) loadCapsuleFrame(capsuleContext) else null
     }
+    // 叠了边框底图之后，霓虹渐变描边、紫色外发光和粉紫底纹会和蓝白花边打架，
+    // 二次元档一律换成中性色；经典档继续用原来的画刷与颜色。
+    val glowColor = if (capsuleSkin == OverlayCapsuleSkin.ANIME) {
+        Color.Black.copy(alpha = 0.55f)
+    } else {
+        NeonPurple
+    }
+    val tintBrush = if (capsuleSkin == OverlayCapsuleSkin.ANIME) null else StickerTintBrush
+    val borderBrush = if (capsuleSkin == OverlayCapsuleSkin.ANIME) FrameBorderBrush else StickerBorderBrush
 
     // 四态切换原本只有文字和外环换色，安静得像没反应；这里给整颗胶囊打一次状态色脉冲。
     val phaseFlash = remember { Animatable(0f) }
@@ -207,20 +216,20 @@ internal fun AgentOverlayCapsule(
                     .shadow(
                         elevation = 10.dp,
                         shape = capsuleStyle.corners,
-                        ambientColor = NeonPurple,
-                        spotColor = accent,
+                        ambientColor = glowColor,
+                        spotColor = glowColor,
                     )
                     .drawBehind { drawStickerOutline(capsuleStyle) }
                     .clip(capsuleStyle.corners)
                     .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = capsuleStyle.backgroundAlpha))
-                    .background(StickerTintBrush)
+                    .then(if (tintBrush != null) Modifier.background(tintBrush) else Modifier)
                     .drawBehind { capsuleFrame?.let { drawCapsuleFrame(it) } }
                     .drawBehind {
                         drawPhaseFlash(accent, phaseFlash.value)
                         drawStickerSheen()
                         if (capsuleStyle.showCornerStar) drawCornerStar(state.phase)
                     }
-                    .border(capsuleStyle.borderWidth, StickerBorderBrush, capsuleStyle.corners),
+                    .border(capsuleStyle.borderWidth, borderBrush, capsuleStyle.corners),
             ) {
                 Row(
                     modifier = Modifier
@@ -497,6 +506,11 @@ private val NeonPink = Color(0xFFFF4FA3)
 /** 边框霓虹渐变：左青 → 中紫 → 右粉。 */
 private val StickerBorderBrush = Brush.linearGradient(listOf(NeonCyan, NeonPurple, NeonPink))
 
+/** 二次元档叠了边框底图后用的中性白描边，避免霓虹渐变与蓝白花边打架。 */
+private val FrameBorderBrush = Brush.linearGradient(
+    listOf(Color.White.copy(alpha = 0.92f), Color.White.copy(alpha = 0.92f)),
+)
+
 /** 贴纸底色染的霓虹渐变，只走低透明度，保证状态文字对比度不变。 */
 private val StickerTintBrush = Brush.linearGradient(
     listOf(
@@ -534,7 +548,7 @@ private fun DrawScope.drawStickerSheen() {
 private const val CAPSULE_FRAME_ASSET = "overlay_capsule_frame.png"
 
 /** 边框底图等比放大系数：1f 为宽度刚好铺满胶囊，越大花边越满、被裁掉的部分也越多。 */
-private const val CAPSULE_FRAME_SCALE = 1.15f
+private const val CAPSULE_FRAME_SCALE = 1.18f
 
 /**
  * 边框底图：保持图片原始比例，宽度铺满胶囊、垂直居中，超出胶囊高度的部分由外层圆角裁掉。
