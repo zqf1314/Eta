@@ -55,6 +55,11 @@ android {
                 storePassword = releaseStorePassword
                 keyAlias = releaseKeyAlias
                 keyPassword = releaseKeyPassword
+                // minSdk 33 时 AGP 默认只打 v2/v3，APK 里没有 META-INF 下的 v1 签名文件，
+                // 部分第三方安装器只认 v1，会报「安装包没有签名文件」。三种一起打，兼容性最好。
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
             }
         }
     }
