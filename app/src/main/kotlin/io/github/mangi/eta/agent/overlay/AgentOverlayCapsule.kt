@@ -22,6 +22,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -33,7 +34,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Pause
@@ -52,11 +52,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -64,6 +71,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mangi.eta.R
@@ -142,6 +151,15 @@ internal fun AgentOverlayCapsule(
         finishedListener = { value -> if (value == 0f) onCollapsedSettled() },
     )
 
+    // 贴纸外形：圆角 + 右下角 45° 斜切。用自定义 Shape 而不是遮罩，描边和阴影才会跟着斜切走。
+    val density = LocalDensity.current
+    val stickerShape = remember(density) {
+        StickerCapsuleShape(
+            cornerPx = with(density) { CapsuleCorner.toPx() },
+            cutPx = with(density) { StickerCut.toPx() },
+        )
+    }
+
     AnimatedVisibility(
         visible = visible,
         enter = slideInVertically(spring(Spring.DampingRatioLowBouncy, Spring.StiffnessMediumLow)) { -it } +
@@ -159,13 +177,23 @@ internal fun AgentOverlayCapsule(
                         val shrink = 1f - 0.08f * clearance
                         scaleX = press * shrink
                         scaleY = press * shrink
+                        rotationZ = StickerTilt
                         translationY = -12.dp.toPx() * clearance
                         alpha = 1f - clearance
                         transformOrigin = TransformOrigin(0.5f, 0f)
                     }
-                    .shadow(10.dp, RoundedCornerShape(CapsuleCorner), ambientColor = accent, spotColor = accent)
-                    .clip(RoundedCornerShape(CapsuleCorner))
-                    .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f)),
+                    // 贴纸：柔光底 + 霓虹描边 + 右下角斜切。阴影仍用 accent，四态语义不变。
+                    .shadow(
+                        elevation = 10.dp,
+                        shape = stickerShape,
+                        ambientColor = NeonPurple,
+                        spotColor = accent,
+                    )
+                    .clip(stickerShape)
+                    .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f))
+                    .background(StickerTintBrush)
+                    .drawBehind { drawStickerSheen() }
+                    .border(width = 1.5.dp, brush = StickerBorderBrush, shape = stickerShape),
             ) {
                 Row(
                     modifier = Modifier
@@ -358,3 +386,67 @@ private fun CapsuleAction(icon: ImageVector, label: String, tint: Color, onClick
 
 private val CapsuleCorner = 22.dp
 private val CapsuleWidth = 248.dp
+
+/** 斜切长度：右下角沿 45° 切掉这么宽的角，像贴纸撕下来的一角。 */
+private val StickerCut = 18.dp
+
+/** 贴纸微微倾斜的角度。若觉得文字发虚，把它改成 0f 就回正了。 */
+private const val StickerTilt = -0.8f
+
+private val NeonCyan = Color(0xFF3EE6F0)
+private val NeonPurple = Color(0xFF9B6BFF)
+private val NeonPink = Color(0xFFFF4FA3)
+
+/** 边框霓虹渐变：左青 → 中紫 → 右粉。 */
+private val StickerBorderBrush = Brush.linearGradient(listOf(NeonCyan, NeonPurple, NeonPink))
+
+/** 贴纸底色染的霓虹渐变，只走低透明度，保证状态文字对比度不变。 */
+private val StickerTintBrush = Brush.linearGradient(
+    listOf(
+        NeonPink.copy(alpha = 0.13f),
+        NeonPurple.copy(alpha = 0.09f),
+        NeonCyan.copy(alpha = 0.13f),
+    ),
+)
+
+/** 左上角一团白色柔光，让扁平底色有一点塑料贴纸的高光。 */
+private fun DrawScope.drawStickerSheen() {
+    val radius = (size.height * 1.2f).coerceAtLeast(1f)
+    val center = Offset(size.width * 0.16f, -radius * 0.45f)
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(Color.White.copy(alpha = 0.14f), Color.Transparent),
+            center = center,
+            radius = radius,
+        ),
+        radius = radius,
+        center = center,
+    )
+}
+
+/**
+ * 贴纸外形：四角圆角，唯独右下角走直线斜切。
+ * 用 Shape 而不是裁一块遮罩，是为了让 shadow/border 的轮廓天然跟着斜切走。
+ */
+private class StickerCapsuleShape(
+    private val cornerPx: Float,
+    private val cutPx: Float,
+) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val corner = cornerPx.coerceAtMost(size.minDimension / 2f)
+        val cut = cutPx.coerceIn(0f, size.minDimension * 0.8f)
+        val path = Path().apply {
+            moveTo(corner, 0f)
+            lineTo(size.width - corner, 0f)
+            arcTo(Rect(size.width - corner * 2f, 0f, size.width, corner * 2f), -90f, 90f, false)
+            lineTo(size.width, size.height - cut)
+            lineTo(size.width - cut, size.height)
+            lineTo(corner, size.height)
+            arcTo(Rect(0f, size.height - corner * 2f, corner * 2f, size.height), 90f, 90f, false)
+            lineTo(0f, corner)
+            arcTo(Rect(0f, 0f, corner * 2f, corner * 2f), 180f, 90f, false)
+            close()
+        }
+        return Outline.Generic(path)
+    }
+}
