@@ -158,15 +158,13 @@ internal fun AgentOverlayCapsule(
         .collectAsState(initial = OverlayCapsuleSkin.ANIME)
         .value
     val capsuleStyle = capsuleSkin.style()
-    // 叠了边框底图之后，霓虹渐变描边、紫色外发光和粉紫底纹会和蓝白花边打架，
-    // 二次元档一律换成中性色；经典档继续用原来的画刷与颜色。
-    val glowColor = if (capsuleSkin == OverlayCapsuleSkin.ANIME) {
-        Color.Black.copy(alpha = 0.55f)
-    } else {
-        NeonPurple
-    }
-    val tintBrush = if (capsuleSkin == OverlayCapsuleSkin.ANIME) null else StickerTintBrush
-    val borderBrush = if (capsuleSkin == OverlayCapsuleSkin.ANIME) FrameBorderBrush else StickerBorderBrush
+    // 二次元档是漫画分镜：纯白底 + 纯黑粗描边 + 不模糊的硬阴影 + 网点，一点彩色都不留；
+    // 经典档继续走原来的渐变描边、紫色外发光和粉紫底纹。
+    val isAnime = capsuleSkin == OverlayCapsuleSkin.ANIME
+    val accentInk = if (isAnime) ComicInk else accent
+    val glowColor = if (isAnime) ComicInk else NeonPurple
+    val tintBrush = if (isAnime) null else StickerTintBrush
+    val borderBrush = if (isAnime) ComicInkBrush else StickerBorderBrush
 
     // 四态切换原本只有文字和外环换色，安静得像没反应；这里给整颗胶囊打一次状态色脉冲。
     val phaseFlash = remember { Animatable(0f) }
@@ -205,21 +203,37 @@ internal fun AgentOverlayCapsule(
                         alpha = 1f - clearance
                         transformOrigin = TransformOrigin(0.5f, 0f)
                     }
-                    // 二次元贴纸：粗白外描边画在裁剪之外，胶囊本体再压上去。
+                    // 二次元档：硬阴影与黑描边都画在裁剪之外，本体随后压上去；
+                    // 经典档沿用原来的粗白外描边。
                     .shadow(
-                        elevation = 10.dp,
+                        elevation = if (isAnime) 0.dp else 10.dp,
                         shape = capsuleStyle.corners,
                         ambientColor = glowColor,
                         spotColor = glowColor,
                     )
-                    .drawBehind { drawStickerOutline(capsuleStyle) }
+                    .then(
+                        if (isAnime) {
+                            Modifier.drawBehind { drawComicSticker(capsuleStyle) }
+                        } else {
+                            Modifier.drawBehind { drawStickerOutline(capsuleStyle) }
+                        },
+                    )
                     .clip(capsuleStyle.corners)
-                    .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = capsuleStyle.backgroundAlpha))
+                    .background(
+                        if (isAnime) Color.White
+                        else MiuixTheme.colorScheme.surfaceContainer.copy(alpha = capsuleStyle.backgroundAlpha),
+                    )
                     .then(if (tintBrush != null) Modifier.background(tintBrush) else Modifier)
                     .drawBehind {
-                        drawPhaseFlash(accent, phaseFlash.value)
-                        drawStickerSheen()
-                        if (capsuleStyle.showCornerStar) drawCornerStar(state.phase)
+                        if (isAnime) {
+                            drawHalftone()
+                        } else {
+                            drawPhaseFlash(accent, phaseFlash.value)
+                            drawStickerSheen()
+                        }
+                        if (capsuleStyle.showCornerStar) {
+                            drawCornerStar(state.phase, if (isAnime) ComicInk else Color.White)
+                        }
                     }
                     .border(capsuleStyle.borderWidth, borderBrush, capsuleStyle.corners),
             ) {
@@ -235,7 +249,7 @@ internal fun AgentOverlayCapsule(
                         .padding(start = 12.dp, end = 16.dp, top = 9.dp, bottom = 9.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    CapsuleAvatar(phase = state.phase, accent = accent)
+                    CapsuleAvatar(phase = state.phase, accent = accentInk)
                     Spacer(Modifier.width(9.dp))
                     Column(modifier = Modifier.weight(1f)) {
                     AnimatedContent(
@@ -498,10 +512,9 @@ private val NeonPink = Color(0xFFFF4FA3)
 /** 边框霓虹渐变：左青 → 中紫 → 右粉。 */
 private val StickerBorderBrush = Brush.linearGradient(listOf(NeonCyan, NeonPurple, NeonPink))
 
-/** 二次元档叠了边框底图后用的中性白描边，避免霓虹渐变与蓝白花边打架。 */
-private val FrameBorderBrush = Brush.linearGradient(
-    listOf(Color.White.copy(alpha = 0.92f), Color.White.copy(alpha = 0.92f)),
-)
+/** 漫画分镜的墨色：描边、硬阴影、角标、头像环统一用它，二次元档不出现任何彩色。 */
+private val ComicInk = Color(0xFF121216)
+private val ComicInkBrush = Brush.linearGradient(listOf(ComicInk, ComicInk))
 
 /** 贴纸底色染的霓虹渐变，只走低透明度，保证状态文字对比度不变。 */
 private val StickerTintBrush = Brush.linearGradient(
@@ -537,6 +550,51 @@ private fun DrawScope.drawStickerSheen() {
 }
 
 /**
+ * 漫画分镜的硬阴影 + 黑描边。
+ *
+ * 阴影不用 `shadow()`：系统的 elevation 阴影必然是糊的，而漫画感要的是"一块纯色错开"。
+ * 先画错位的墨色块，再画与本体同心的墨色块，本体压上去后只剩一圈硬黑边和下方一道硬影。
+ */
+private fun DrawScope.drawComicSticker(style: OverlayCapsuleStyle) {
+    val outline = style.outlineWidth.toPx()
+    if (outline <= 0f) return
+    val radius = CornerRadius(style.outlineCornerRadius.toPx())
+    val drop = 3.dp.toPx()
+    val box = Size(size.width + outline * 2f, size.height + outline * 2f)
+    drawRoundRect(
+        color = ComicInk,
+        topLeft = Offset(-outline, -outline + drop),
+        size = box,
+        cornerRadius = radius,
+    )
+    drawRoundRect(
+        color = ComicInk,
+        topLeft = Offset(-outline, -outline),
+        size = box,
+        cornerRadius = radius,
+    )
+}
+
+/** 45 度网点：漫画分镜的底纹，用低透明度墨点叠在白底上，不抢文字。 */
+private fun DrawScope.drawHalftone() {
+    val step = 8.dp.toPx()
+    if (step <= 0f) return
+    val radius = 0.7.dp.toPx()
+    val color = ComicInk.copy(alpha = 0.07f)
+    var y = step / 2f
+    var row = 0
+    while (y < size.height) {
+        var x = if (row % 2 == 0) step / 2f else step
+        while (x < size.width) {
+            drawCircle(color, radius, Offset(x, y))
+            x += step
+        }
+        y += step
+        row++
+    }
+}
+
+/**
  * 粗白外描边：先画一层比胶囊大 3dp 的白色圆角块，胶囊本体随后压上去，露出来的就是白边。
  *
  * 必须挂在 `clip` 之前，否则会被自身圆角裁掉，只剩一圈发光没有白边。
@@ -558,7 +616,7 @@ private fun DrawScope.drawStickerOutline(style: OverlayCapsuleStyle) {
  * 只用静态透明度区分状态，不额外挂无限动画——胶囊上的常驻动画已经够多了，
  * 再开会挤压 overlay 窗口的帧预算。
  */
-private fun DrawScope.drawCornerStar(phase: AgentOverlayPhase) {
+private fun DrawScope.drawCornerStar(phase: AgentOverlayPhase, ink: Color = Color.White) {
     val r = 4.4.dp.toPx()
     val cx = size.width - 10.dp.toPx()
     val cy = 8.dp.toPx()
@@ -572,5 +630,5 @@ private fun DrawScope.drawCornerStar(phase: AgentOverlayPhase) {
         close()
     }
     val alpha = if (phase == AgentOverlayPhase.RUNNING) 0.95f else 0.42f
-    drawPath(path, Color.White.copy(alpha = alpha))
+    drawPath(path, ink.copy(alpha = alpha))
 }

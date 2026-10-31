@@ -109,9 +109,6 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
     private var pendantView: android.widget.ImageView? = null
     private var pendantParams: WindowManager.LayoutParams? = null
     private var pendantSkinJob: Job? = null
-    private var capsuleFrameView: android.widget.ImageView? = null
-    private var capsuleFrameParams: WindowManager.LayoutParams? = null
-    private var capsuleFrameSkinJob: Job? = null
     private var resultCardParams: WindowManager.LayoutParams? = null
     private var resultCardBack: Pair<OnBackInvokedDispatcher, OnBackInvokedCallback>? = null
 
@@ -196,9 +193,6 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
         capsuleView?.let { view -> runCatching { windowManager?.removeView(view) } }
         glowView?.let { view -> runCatching { windowManager?.removeView(view) } }
         pendantView?.let { view -> runCatching { windowManager?.removeView(view) } }
-        capsuleFrameView?.let { view -> runCatching { windowManager?.removeView(view) } }
-        capsuleFrameView = null
-        capsuleFrameParams = null
         resultCardView = null
         capsuleView = null
         glowView = null
@@ -1017,107 +1011,17 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
             )
         }
         val capsuleLp = capsuleLayoutParams()
-        // 同类型窗口后加入者在上层：边框必须先入，否则会被胶囊本体盖住。
-        attachCapsuleFrame()
         capsule.keepScreenOn = keepScreenOn.value
         runCatching { wm.addView(capsule, capsuleLp) }.onFailure { throwable ->
             AndroidAgentLogger.warnThrottled("runtime_capsule_add_view_failed") {
                 "Agent runtime capsule addView failed: type=${throwable.safeLogType()}"
             }
-            detachCapsuleFrame()
             return
         }
         capsuleView = capsule
         capsuleParams = capsuleLp
         observePendantSkin()
-        observeCapsuleFrameSkin()
     }
-
-    /**
-     * 边框跟随皮肤：只有「二次元」档才铺边框图，经典档完全不出现。
-     *
-     * 用独立窗口而不是画在胶囊窗口里，是因为胶囊窗口只有 272×68dp，
-     * 比它大一圈的边框图画进去必然被窗口边界裁掉；独立窗口用
-     * FLAG_NOT_TOUCHABLE 铺满全屏也没关系，触摸完全穿透，死区增量为 0。
-     */
-    private fun observeCapsuleFrameSkin() {
-        if (capsuleFrameSkinJob != null) return
-        capsuleFrameSkinJob = serviceScope.launch {
-            OverlayCapsuleSkinRepository.flow().collect { skin ->
-                if (capsuleView == null) return@collect
-                if (skin == OverlayCapsuleSkin.ANIME) attachCapsuleFrame() else detachCapsuleFrame()
-            }
-        }
-    }
-
-    private fun attachCapsuleFrame() {
-        if (capsuleFrameView != null) return
-        val wm = windowManager ?: return
-        val bitmap = loadCapsuleFrameBitmap() ?: return
-        val frame = android.widget.ImageView(this).apply {
-            setImageBitmap(bitmap)
-            // 窗口尺寸已按图片比例算好，铺满即可，不再做任何缩放。
-            scaleType = android.widget.ImageView.ScaleType.FIT_XY
-            setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
-        }
-        val lp = capsuleFrameLayoutParams()
-        runCatching { wm.addView(frame, lp) }.onFailure { throwable ->
-            AndroidAgentLogger.warnThrottled("runtime_capsule_frame_add_view_failed") {
-                "Agent runtime capsule frame addView failed: type=${throwable.safeLogType()}"
-            }
-            return
-        }
-        capsuleFrameView = frame
-        capsuleFrameParams = lp
-    }
-
-    private fun detachCapsuleFrame() {
-        val wm = windowManager
-        capsuleFrameView?.let { view -> runCatching { wm?.removeView(view) } }
-        capsuleFrameView = null
-        capsuleFrameParams = null
-    }
-
-    private fun capsuleFrameLayoutParams(): WindowManager.LayoutParams {
-        val widthPx = dpToPx(CAPSULE_FRAME_WIDTH_DP)
-        // 高度不按图片比例算：按比例算会得到 120dp，是胶囊的两倍高；而 overlay 窗口
-        // 又不允许压进状态栏，系统会把整窗往下挤，结果就是框整体偏下、上边花纹被胶囊吃掉。
-        // 直接取胶囊窗口高度，框和胶囊同顶同高，四边露出量才均匀（图片会被垂直压缩）。
-        val heightPx = dpToPx(CAPSULE_COLLAPSED_HEIGHT_DP)
-        return WindowManager.LayoutParams(
-            widthPx,
-            heightPx,
-            overlayType(),
-            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED or
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.TRANSLUCENT,
-        ).apply {
-            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            // 与胶囊窗口取同一个 y：两窗同顶同高，框的本体中心自然和胶囊本体中心重合。
-            y = statusBarHeightPx()
-            windowAnimations = 0
-        }
-    }
-
-    private fun loadCapsuleFrameBitmap(): android.graphics.Bitmap? = runCatching {
-        val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        assets.open(CAPSULE_FRAME_ASSET).use { stream ->
-            android.graphics.BitmapFactory.decodeStream(stream, null, bounds)
-        }
-        val needPx = dpToPx(CAPSULE_FRAME_WIDTH_DP)
-        var sample = 1
-        while (bounds.outWidth / (sample * 2) >= needPx) sample *= 2
-        assets.open(CAPSULE_FRAME_ASSET).use { stream ->
-            android.graphics.BitmapFactory.decodeStream(
-                stream,
-                null,
-                android.graphics.BitmapFactory.Options().apply { inSampleSize = sample },
-            )
-        }
-    }.getOrNull()
 
     /**
      * 挂件跟随皮肤：只有「二次元」档才挂角色，经典档完全不出现。
@@ -1547,9 +1451,6 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
         capsuleView?.let { view -> runCatching { windowManager?.removeView(view) } }
         glowView?.let { view -> runCatching { windowManager?.removeView(view) } }
         pendantView?.let { view -> runCatching { windowManager?.removeView(view) } }
-        capsuleFrameView?.let { view -> runCatching { windowManager?.removeView(view) } }
-        capsuleFrameView = null
-        capsuleFrameParams = null
         capsuleView = null
         glowView = null
         pendantView = null
@@ -1576,9 +1477,6 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
         capsuleView?.let { view -> runCatching { windowManager?.removeView(view) } }
         glowView?.let { view -> runCatching { windowManager?.removeView(view) } }
         pendantView?.let { view -> runCatching { windowManager?.removeView(view) } }
-        capsuleFrameView?.let { view -> runCatching { windowManager?.removeView(view) } }
-        capsuleFrameView = null
-        capsuleFrameParams = null
         resultCardView = null
         capsuleView = null
         glowView = null
@@ -1634,10 +1532,6 @@ internal class AgentRuntimeService : Service(), LifecycleOwner, SavedStateRegist
         private const val PENDANT_ASSET = "overlay_pendant.png"
         private const val PENDANT_HEIGHT_DP = 108
         private const val PENDANT_WIDTH_RATIO = 0.667f
-        /** 二次元档胶囊边框图：独立穿透窗口，比胶囊本体大一圈，不参与触摸分发。 */
-        private const val CAPSULE_FRAME_ASSET = "overlay_capsule_frame.png"
-        private const val CAPSULE_FRAME_WIDTH_DP = 300
-
         /** 水平右移量：0 表示屏幕居中。 */
         private const val PENDANT_SHIFT_DP = 42
 
